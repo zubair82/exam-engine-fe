@@ -1,0 +1,6 @@
+{
+  "name": "ExamSimula",
+  "description": "India's most realistic exam simulator for JEE, NEET, and CUET, featuring full-screen mock exams, anti-cheating detection, and server-side AI-powered performance analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

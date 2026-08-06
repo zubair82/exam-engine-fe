@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
+  console.log("ENV:", import.meta.env);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-6 selection:bg-blue-100 selection:text-blue-900">

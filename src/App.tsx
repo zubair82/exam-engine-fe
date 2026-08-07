@@ -803,7 +803,8 @@ export default function App() {
   useEffect(() => {
     // Check if we should redirect from landing/login pages to dashboard based on role
     if (!isLoading && user) {
-      if (location.pathname === '/home' || location.pathname === '/login' || location.pathname === '/') {
+      const normalizedPath = location.pathname.replace(/\/$/, '');
+      if (normalizedPath === '/home' || normalizedPath === '/login' || normalizedPath === '') {
         const postLoginAction = localStorage.getItem('postLoginAction');
         if (postLoginAction === 'startFirstMockTest') {
           localStorage.removeItem('postLoginAction');

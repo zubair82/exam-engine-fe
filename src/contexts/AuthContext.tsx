@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const response = await fetch('http://localhost:5001/api/v1/auth/me', {
+        const response = await fetch(`${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     if (token) {
       try {
-        await fetch('http://localhost:5001/api/v1/auth/logout', {
+        await fetch(`${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`

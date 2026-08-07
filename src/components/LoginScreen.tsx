@@ -25,7 +25,7 @@ export default function LoginScreen() {
         
         <div className="p-8 space-y-4">
           <a 
-            href="http://localhost:5001/api/v1/auth/google/login?role=STUDENT"
+            href={`${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/google/login?role=STUDENT`}
             className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
           >
             <div className="flex items-center gap-4">
@@ -41,7 +41,7 @@ export default function LoginScreen() {
           </a>
 
           <a 
-            href="http://localhost:5001/api/v1/auth/google/login?role=ADMIN"
+            href={`${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/google/login?role=ADMIN`}
             className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-primary-container hover:bg-primary-container/10 transition-all group"
           >
             <div className="flex items-center gap-4">

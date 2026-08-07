@@ -35,7 +35,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
     const fetchExams = async () => {
       if (!token) return;
       try {
-        const response = await fetch('http://localhost:8080/api/v1/exams', {
+        const response = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

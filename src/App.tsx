@@ -82,7 +82,7 @@ export default function App() {
 
   // Check if server-side Gemini API is configured
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/ai/status')
+    fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/ai/status`)
       .then((res) => res.json())
       .then((data) => {
         setGeminiConfigured(!!data.configured);
@@ -100,7 +100,7 @@ export default function App() {
     if (aiSuggestion?.status === 'processing' && session?.paperId) {
       intervalId = setInterval(async () => {
         try {
-          const res = await fetch(`http://localhost:8080/api/v1/report/${session.paperId}`, {
+          const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/report/${session.paperId}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
           });
           
@@ -127,7 +127,7 @@ export default function App() {
   const handleStartExam = async (paperId: number) => {
     try {
       // 0. Fetch exams list to get total questions
-      const examsRes = await fetch('http://localhost:8080/api/v1/exams', {
+      const examsRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (!examsRes.ok) throw new Error('Failed to fetch exams list');
@@ -136,7 +136,7 @@ export default function App() {
       const totalQuestions = currentExamMeta && currentExamMeta.total_questions ? currentExamMeta.total_questions : 75;
 
       // Fetch FIRST question dynamically to load UI instantly
-      const firstQRes = await fetch(`http://localhost:8080/api/v1/exams/${paperId}/questions/1`, {
+      const firstQRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams/${paperId}/questions/1`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       const firstQ = firstQRes.ok ? await firstQRes.json() : null;
@@ -219,7 +219,7 @@ export default function App() {
           const promises = [];
           for (let i = 2; i <= totalQuestions; i++) {
             promises.push(
-              fetch(`http://localhost:8080/api/v1/exams/${paperId}/questions/${i}`, {
+              fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams/${paperId}/questions/${i}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
               }).then(r => r.ok ? r.json() : null).catch(() => null)
             );
@@ -254,7 +254,7 @@ export default function App() {
       setActiveExam(exam);
 
       // 1. Initialize session on the backend
-      const res = await fetch(`http://localhost:8080/api/v1/exam/${paperId}/start`, {
+      const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/${paperId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -267,7 +267,7 @@ export default function App() {
       }
 
       // 2. Resume session state from backend
-      const resumeRes = await fetch(`http://localhost:8080/api/v1/exam/session/resume?paper_id=${paperId}`, {
+      const resumeRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/resume?paper_id=${paperId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
@@ -312,7 +312,7 @@ export default function App() {
   const handleViewReport = async (paperId: number) => {
     try {
       // 0. Fetch exams list to get total questions
-      const examsRes = await fetch('http://localhost:8080/api/v1/exams', {
+      const examsRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (!examsRes.ok) throw new Error('Failed to fetch exams list');
@@ -322,7 +322,7 @@ export default function App() {
       const examDuration = currentExamMeta && currentExamMeta.duration_seconds ? currentExamMeta.duration_seconds : 10800;
 
       // 1. Fetch Report Data
-      const res = await fetch(`http://localhost:8080/api/v1/report/${paperId}`, {
+      const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/report/${paperId}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (!res.ok) throw new Error('Failed to fetch report data');
@@ -331,7 +331,7 @@ export default function App() {
       // Fetch Answer Key
       let answersMap: Record<string, string> = {};
       try {
-        const ansRes = await fetch(`http://localhost:8080/api/v1/exam/${paperId}/answer`, {
+        const ansRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/${paperId}/answer`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
         });
         if (ansRes.ok) {
@@ -490,7 +490,7 @@ export default function App() {
   // Launch customized AI focus test by calling backend
   const handleStartAIFocusTest = async (topic: string, subject: string) => {
     try {
-      const res = await fetch('http://localhost:8080/api/v1/ai/generate-test', {
+      const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/ai/generate-test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic, subject }),
@@ -542,7 +542,7 @@ export default function App() {
         (JSON.stringify(prevSession.answers) !== JSON.stringify(updatedSession.answers) ||
          JSON.stringify(prevSession.statuses) !== JSON.stringify(updatedSession.statuses))
       ) {
-        fetch('http://localhost:8080/api/v1/exam/session/autosave', {
+        fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/autosave`, {
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
@@ -568,7 +568,7 @@ export default function App() {
     if (!session || session.isCompleted || location.pathname !== '/exam') return;
 
     const intervalId = setInterval(() => {
-      fetch('http://localhost:8080/api/v1/exam/session/autosave', {
+      fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/autosave`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -652,7 +652,7 @@ export default function App() {
          question_level_data: questionLevelData
       };
       
-      const res = await fetch(`http://localhost:8080/api/v1/exam/attempts/${attemptId}/analytics`, {
+      const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/attempts/${attemptId}/analytics`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -689,7 +689,7 @@ export default function App() {
       const attemptId = `${session.paperId}-${Date.now()}`;
       let finalQuestions = activeExam ? [...activeExam.questions] : [];
       try {
-        const res = await fetch('http://localhost:8080/api/v1/exam/session/submit', {
+        const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/submit`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -708,7 +708,7 @@ export default function App() {
         }
 
         // Fetch all answers for the paper
-        const ansRes = await fetch(`http://localhost:8080/api/v1/exam/${session.paperId}/answer`, {
+        const ansRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/${session.paperId}/answer`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           }
@@ -809,7 +809,7 @@ export default function App() {
           localStorage.removeItem('postLoginAction');
           
           // Fetch the first exam and navigate to its instructions
-          fetch('http://localhost:8080/api/v1/exams', {
+          fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
           })
           .then(res => res.json())
@@ -858,7 +858,7 @@ export default function App() {
                     localStorage.setItem('postLoginAction', 'startFirstMockTest');
                     navigate('/login');
                   } else {
-                    fetch('http://localhost:8080/api/v1/exams', {
+                    fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
                       headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                     })
                     .then(res => res.json())

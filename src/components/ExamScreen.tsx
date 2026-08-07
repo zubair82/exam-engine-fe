@@ -76,7 +76,7 @@ export default function ExamScreen({
       if (document.hidden) {
         setShowCheatingWarning(true);
         try {
-          const res = await fetch('http://localhost:8080/api/v1/exam/session/violation', {
+          const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/violation`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',

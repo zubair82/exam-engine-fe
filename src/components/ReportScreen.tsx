@@ -54,7 +54,7 @@ export default function ReportScreen({
 
     const fetchFullQuestion = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/v1/exams/${exam.id}/questions/${selectedQuestion.id}/full`, {
+        const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams/${exam.id}/questions/${selectedQuestion.id}/full`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
         });
         if (res.ok) {

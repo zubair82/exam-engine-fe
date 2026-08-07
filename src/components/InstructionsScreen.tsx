@@ -14,7 +14,7 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
   const [durationMins, setDurationMins] = useState(180);
 
   React.useEffect(() => {
-    fetch('http://localhost:8080/api/v1/exams', {
+    fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
     }).then(res => res.json()).then(data => {
       const exam = data.find((e: any) => e.exam_code === paperId || e.paper_id === paperId);

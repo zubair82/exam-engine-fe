@@ -85,7 +85,7 @@ export default function ExamScreen({
             credentials: 'include',
             body: JSON.stringify({ paper_id: session.paperId })
           });
-          
+
           if (res.status === 403) {
             alert("Exam Terminated for Malpractice: You have exceeded the maximum number of warnings.");
             onUpdateSession({
@@ -146,7 +146,7 @@ export default function ExamScreen({
   useEffect(() => {
     if (activeQuestion) {
       setActiveSubject(activeQuestion.subject);
-      
+
       // If question is unvisited or undefined, change status to 'not_answered' since they've now opened it
       const currentStatus = session.statuses[activeQuestion.id];
       if (!currentStatus || currentStatus === 'unvisited') {
@@ -223,7 +223,7 @@ export default function ExamScreen({
   const handleMarkForReviewAndNext = () => {
     const updatedStatuses = { ...session.statuses };
     const hasAnswer = session.answers[activeQuestion.id] !== undefined;
-    
+
     updatedStatuses[activeQuestion.id] = hasAnswer ? 'answered_marked' : 'marked';
 
     onUpdateSession({
@@ -360,7 +360,7 @@ export default function ExamScreen({
 
   return (
     <div className="bg-slate-50 fixed inset-0 flex flex-col overflow-hidden select-none font-sans text-slate-800">
-      
+
       {/* Anti-Cheating Fullscreen Proctoring Warning Overlay */}
       <AnimatePresence>
         {showCheatingWarning && (
@@ -431,7 +431,7 @@ export default function ExamScreen({
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             {/* Calc Display */}
             <div className="bg-slate-950 rounded p-2 text-right font-mono text-sm h-14 flex flex-col justify-between overflow-hidden mb-3 border border-slate-800">
               <span className="text-[10px] text-slate-500 overflow-x-auto whitespace-nowrap block">{calcInput || '0'}</span>
@@ -444,13 +444,12 @@ export default function ExamScreen({
                 <button
                   key={key}
                   onClick={() => handleCalcPress(key)}
-                  className={`py-2 rounded transition-colors text-center ${
-                    key === '='
-                      ? 'col-span-2 bg-blue-600 text-white hover:bg-blue-500'
-                      : key === 'C'
+                  className={`py-2 rounded transition-colors text-center ${key === '='
+                    ? 'col-span-2 bg-blue-600 text-white hover:bg-blue-500'
+                    : key === 'C'
                       ? 'bg-red-900/40 text-red-300 border border-red-900/30 hover:bg-red-900/60'
                       : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   {key}
                 </button>
@@ -467,14 +466,14 @@ export default function ExamScreen({
       <div className="w-full bg-[#f0f4f7] border-b border-slate-200 flex px-8 py-2.5 items-center shrink-0 z-10 text-xs shadow-sm">
         <div className="flex items-center gap-6 flex-1">
           <div className="w-20 h-20 bg-white border-2 border-slate-300 rounded shadow-sm flex items-center justify-center shrink-0">
-             <span className="material-symbols-outlined text-5xl text-slate-400">person</span>
+            <span className="material-symbols-outlined text-5xl text-slate-400">person</span>
           </div>
           <div className="flex flex-col leading-tight gap-1.5">
             <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Candidate Name :</span> <span className="font-bold text-orange-500 text-sm">{user?.name || "Student"}</span></div>
             <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Exam Name :</span> <span className="font-bold text-orange-500 text-sm">{exam.name}</span></div>
             <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Subject Name :</span> <span className="font-bold text-orange-500 text-sm">{activeSubject}</span></div>
             <div className="flex items-center mt-1">
-              <span className="w-32 text-slate-600 font-semibold text-sm">Remaining Time :</span> 
+              <span className="w-32 text-slate-600 font-semibold text-sm">Remaining Time :</span>
               <span className="bg-[#2a84c8] text-white font-mono font-bold px-3 py-0.5 rounded-full text-sm shadow-sm">
                 {formatTime(session.secondsRemaining)}
               </span>
@@ -485,10 +484,10 @@ export default function ExamScreen({
 
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden min-h-0 relative z-10">
-        
+
         {/* Left Pane (Question Stem + Answer Selection, takes 75%) */}
         <section className="flex-1 flex flex-col bg-white overflow-hidden min-h-0 min-w-0 relative">
-          
+
 
 
           {/* Question Metadata Bar */}
@@ -507,7 +506,7 @@ export default function ExamScreen({
                 <span>Report Issue</span>
               </button>
               */}
-              
+
               {/* 
               <button
                 onClick={() => setShowCalculator(!showCalculator)}
@@ -557,21 +556,19 @@ export default function ExamScreen({
                     <button
                       key={index}
                       onClick={() => handleSelectOption(index)}
-                      className={`flex items-center p-4 border rounded-lg cursor-pointer text-left transition-all group ${
-                        isSelected
-                          ? 'border-blue-900 bg-blue-50/20'
-                          : 'border-slate-200 hover:bg-slate-50/50'
-                      }`}
+                      className={`flex items-center p-4 border rounded-lg cursor-pointer text-left transition-all group ${isSelected
+                        ? 'border-blue-900 bg-blue-50/20'
+                        : 'border-slate-200 hover:bg-slate-50/50'
+                        }`}
                     >
                       {/* Custom Styled Radio circular bullet */}
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all ${
-                        isSelected 
-                          ? 'border-blue-900 bg-blue-500' 
-                          : 'border-slate-300 group-hover:border-blue-900'
-                      }`}>
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all ${isSelected
+                        ? 'border-blue-900 bg-blue-500'
+                        : 'border-slate-300 group-hover:border-blue-900'
+                        }`}>
                         {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
                       </div>
-                      
+
                       <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 font-bold' : 'text-slate-700'}`}>
                         <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
                       </span>
@@ -591,7 +588,7 @@ export default function ExamScreen({
               >
                 Save & Next
               </button>
-              
+
               <button
                 onClick={handleClearResponse}
                 className="px-5 py-2.5 bg-white border border-[#ccc] hover:bg-slate-50 text-slate-800 text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
@@ -633,7 +630,7 @@ export default function ExamScreen({
                 NEXT &gt;&gt;
               </button>
             </div>
-            
+
             <button
               onClick={() => setShowSubmitModal(true)}
               className="px-8 py-1.5 bg-[#5cb85c] hover:bg-[#4cae4c] text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm"
@@ -645,29 +642,29 @@ export default function ExamScreen({
 
         {/* Right Pane */}
         <aside className="w-[340px] flex flex-col bg-white border-l border-slate-300 shrink-0 z-30 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] overflow-hidden">
-          
+
           {/* NTA Color State Legends */}
           <div className="p-4 border-b border-slate-300 bg-white grid grid-cols-2 gap-x-2 gap-y-4 text-xs leading-tight text-slate-700">
             <div className="flex items-center gap-2">
               <div className="w-8 h-7 bg-[#f0f0f0] border border-slate-300 rounded flex items-center justify-center font-bold text-slate-700 shadow-sm">{unvisitedCount}</div>
               <span className="flex-1">Not Visited</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <div className="w-8 h-7 bg-[#d9534f] text-white flex items-center justify-center font-bold shadow-sm" style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%)" }}>{notAnsweredCount}</div>
               <span className="flex-1">Not Answered</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <div className="w-8 h-7 bg-[#5cb85c] text-white flex items-center justify-center font-bold shadow-sm" style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%)" }}>{answeredCount}</div>
               <span className="flex-1">Answered</span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#603598] rounded-full text-white flex items-center justify-center font-bold shadow-sm">{markedCount}</div>
               <span className="flex-1">Marked for Review</span>
             </div>
-            
+
             <div className="flex items-start gap-2 col-span-2 mt-2">
               <div className="w-8 h-8 bg-[#603598] rounded-full text-white flex items-center justify-center font-bold shrink-0 relative shadow-sm">
                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#5cb85c] rounded-full border border-white"></div>
@@ -682,11 +679,10 @@ export default function ExamScreen({
               <button
                 key={sub}
                 onClick={() => handleSwitchSubject(sub)}
-                className={`flex-1 py-3 font-bold text-xs tracking-wide transition-all uppercase text-center ${
-                  activeSubject.toLowerCase() === sub.toLowerCase()
-                    ? 'text-blue-900 border-b-2 border-blue-900 bg-blue-50/50'
-                    : 'text-slate-600 hover:bg-slate-100/50'
-                }`}
+                className={`flex-1 py-3 font-bold text-xs tracking-wide transition-all uppercase text-center ${activeSubject.toLowerCase() === sub.toLowerCase()
+                  ? 'text-blue-900 border-b-2 border-blue-900 bg-blue-50/50'
+                  : 'text-slate-600 hover:bg-slate-100/50'
+                  }`}
               >
                 {sub}
               </button>
@@ -730,9 +726,8 @@ export default function ExamScreen({
                     key={q.id}
                     onClick={() => handleJumpToQuestion(idx)}
                     style={style}
-                    className={`w-11 h-10 text-sm font-bold flex items-center justify-center relative hover:opacity-85 transition-all cursor-pointer shadow-sm ${btnClass} ${
-                      isActive ? 'ring-2 ring-blue-500 ring-offset-2 z-10' : ''
-                    }`}
+                    className={`w-11 h-10 text-sm font-bold flex items-center justify-center relative hover:opacity-85 transition-all cursor-pointer shadow-sm ${btnClass} ${isActive ? 'ring-2 ring-blue-500 ring-offset-2 z-10' : ''
+                      }`}
                   >
                     {idx + 1}
                     {status === 'answered_marked' && (

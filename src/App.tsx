@@ -14,11 +14,11 @@ import { useAuth } from './contexts/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
   const { user, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div></div>;
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -49,7 +49,7 @@ export default function App() {
       return null;
     }
   });
-  
+
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(() => {
     const saved = localStorage.getItem('current_ai_suggestion');
     if (saved) {
@@ -96,14 +96,14 @@ export default function App() {
   // Poll for analytics when in processing state
   useEffect(() => {
     let intervalId: any;
-    
+
     if (aiSuggestion?.status === 'processing' && session?.paperId) {
       intervalId = setInterval(async () => {
         try {
           const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/report/${session.paperId}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
           });
-          
+
           if (res.ok) {
             const report = await res.json();
             if (report.analytics && report.analytics.summary) {
@@ -117,7 +117,7 @@ export default function App() {
         }
       }, 3000); // Check every 3 seconds
     }
-    
+
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
@@ -140,7 +140,7 @@ export default function App() {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       const firstQ = firstQRes.ok ? await firstQRes.json() : null;
-      
+
       if (!firstQ) {
         alert("Failed to load the first question from the server.");
         return;
@@ -225,7 +225,7 @@ export default function App() {
             );
           }
           const restData = await Promise.all(promises);
-          
+
           setActiveExam(prev => {
             if (!prev) return prev;
             const updatedQs = [...prev.questions];
@@ -279,7 +279,7 @@ export default function App() {
       }
 
       const sessionData = await resumeRes.json();
-      
+
       const parsedAnswers = typeof sessionData.answers === 'string' ? JSON.parse(sessionData.answers) : sessionData.answers || {};
       const parsedStatuses = typeof sessionData.palette_state === 'string' ? JSON.parse(sessionData.palette_state) : sessionData.palette_state || {};
       const parsedTimeSpent = typeof sessionData.time_spent === 'string' ? JSON.parse(sessionData.time_spent) : sessionData.time_spent || {};
@@ -345,17 +345,17 @@ export default function App() {
       let dummyQuestions: Question[] = Array(totalQuestions).fill(null).map((_, i) => {
         let subj = 'Physics';
         if (totalQuestions === 75 || totalQuestions === 90) {
-           const third = totalQuestions / 3;
-           if (i < third) subj = 'Physics';
-           else if (i < 2 * third) subj = 'Chemistry';
-           else subj = 'Mathematics';
+          const third = totalQuestions / 3;
+          if (i < third) subj = 'Physics';
+          else if (i < 2 * third) subj = 'Chemistry';
+          else subj = 'Mathematics';
         }
 
         // Determine type based on standard JEE MAIN structure (last 5 of every 25 are numerical)
         let isNumerical = false;
         if (totalQuestions === 75) {
-            const numInSubj = (i) % 25;
-            if (numInSubj >= 20) isNumerical = true;
+          const numInSubj = (i) % 25;
+          if (numInSubj >= 20) isNumerical = true;
         }
         const type = isNumerical ? 'numerical' : 'Single Choice Type';
 
@@ -375,11 +375,11 @@ export default function App() {
         let correctOpt = -1;
         const ansStr = answersMap[q.id];
         if (ansStr) {
-           const cleanStr = String(ansStr).trim().toUpperCase();
-           if (cleanStr.startsWith('A.') || cleanStr.startsWith('A ') || cleanStr === 'A' || cleanStr === '1') correctOpt = 0;
-           else if (cleanStr.startsWith('B.') || cleanStr.startsWith('B ') || cleanStr === 'B' || cleanStr === '2') correctOpt = 1;
-           else if (cleanStr.startsWith('C.') || cleanStr.startsWith('C ') || cleanStr === 'C' || cleanStr === '3') correctOpt = 2;
-           else if (cleanStr.startsWith('D.') || cleanStr.startsWith('D ') || cleanStr === 'D' || cleanStr === '4') correctOpt = 3;
+          const cleanStr = String(ansStr).trim().toUpperCase();
+          if (cleanStr.startsWith('A.') || cleanStr.startsWith('A ') || cleanStr === 'A' || cleanStr === '1') correctOpt = 0;
+          else if (cleanStr.startsWith('B.') || cleanStr.startsWith('B ') || cleanStr === 'B' || cleanStr === '2') correctOpt = 1;
+          else if (cleanStr.startsWith('C.') || cleanStr.startsWith('C ') || cleanStr === 'C' || cleanStr === '3') correctOpt = 2;
+          else if (cleanStr.startsWith('D.') || cleanStr.startsWith('D ') || cleanStr === 'D' || cleanStr === '4') correctOpt = 3;
         }
         return { ...q, correctOption: correctOpt, correctAnswerText: ansStr };
       });
@@ -396,24 +396,24 @@ export default function App() {
 
       // Parse attempt state directly from report payload
       const parsedAnswers = report.answer_sheet || {};
-      
+
       // Convert string indices like "0" back to integers for Single Choice
       Object.keys(parsedAnswers).forEach(key => {
-         const val = parsedAnswers[key];
-         const dummyQ = dummyQuestions.find(q => q.id.toString() === key);
-         if (dummyQ && dummyQ.type !== 'numerical') {
-            if (typeof val === 'string' && !isNaN(parseInt(val))) {
-               parsedAnswers[key] = parseInt(val);
-            }
-         }
+        const val = parsedAnswers[key];
+        const dummyQ = dummyQuestions.find(q => q.id.toString() === key);
+        if (dummyQ && dummyQ.type !== 'numerical') {
+          if (typeof val === 'string' && !isNaN(parseInt(val))) {
+            parsedAnswers[key] = parseInt(val);
+          }
+        }
       });
-      
+
       const parsedStatuses = report.palette_state || {};
       let parsedTimeSpent: Record<string, number> = {};
       if (report.session_metadata) {
         if (report.session_metadata.time_spent) {
-          parsedTimeSpent = typeof report.session_metadata.time_spent === 'string' 
-            ? JSON.parse(report.session_metadata.time_spent) 
+          parsedTimeSpent = typeof report.session_metadata.time_spent === 'string'
+            ? JSON.parse(report.session_metadata.time_spent)
             : report.session_metadata.time_spent;
         }
       }
@@ -429,24 +429,24 @@ export default function App() {
       // Calculate score exactly like handleSubmitExam
       let calculatedScore = 0;
       dummyQuestions.forEach((q) => {
-         const selected = parsedAnswers[q.id];
-         if (selected !== undefined) {
-           if (q.type === 'numerical') {
-             const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
-             const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-             const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-             const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
+        const selected = parsedAnswers[q.id];
+        if (selected !== undefined) {
+          if (q.type === 'numerical') {
+            const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
+            const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
+            const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
+            const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
 
-             if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
-               calculatedScore += 4;
-             } else {
-               calculatedScore -= 1;
-             }
-           } else {
-             if (selected === q.correctOption) calculatedScore += 4;
-             else calculatedScore -= 1;
-           }
-         }
+            if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
+              calculatedScore += 4;
+            } else {
+              calculatedScore -= 1;
+            }
+          } else {
+            if (selected === q.correctOption) calculatedScore += 4;
+            else calculatedScore -= 1;
+          }
+        }
       });
 
       let reportStats = undefined;
@@ -472,8 +472,8 @@ export default function App() {
       });
 
       if (report.analytics) {
-         setAiSuggestion(report.analytics);
-         localStorage.setItem('current_ai_suggestion', JSON.stringify(report.analytics));
+        setAiSuggestion(report.analytics);
+        localStorage.setItem('current_ai_suggestion', JSON.stringify(report.analytics));
       } else {
         setAiSuggestion(null);
         localStorage.removeItem('current_ai_suggestion');
@@ -498,9 +498,9 @@ export default function App() {
       if (!res.ok) {
         throw new Error('Server returned an error generating focus test');
       }
-      
+
       const customQuestions = await res.json();
-      
+
       const aiExam: Exam = {
         id: `ai-focus-${Date.now()}`,
         name: `AI Focus: ${topic}`,
@@ -538,13 +538,13 @@ export default function App() {
       // Only hit the API instantly if answers or statuses have actually changed!
       // This prevents the 1-second timer tick from spamming the backend.
       if (
-        prevSession && 
+        prevSession &&
         (JSON.stringify(prevSession.answers) !== JSON.stringify(updatedSession.answers) ||
-         JSON.stringify(prevSession.statuses) !== JSON.stringify(updatedSession.statuses))
+          JSON.stringify(prevSession.statuses) !== JSON.stringify(updatedSession.statuses))
       ) {
         fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/autosave`, {
           method: 'PUT',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
           },
@@ -570,7 +570,7 @@ export default function App() {
     const intervalId = setInterval(() => {
       fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/session/autosave`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
@@ -597,59 +597,59 @@ export default function App() {
       let incorrectCount = 0;
       let guessedAnswers = 0;
       const questionLevelData: any[] = [];
-      
+
       questions.forEach(q => {
-         const chosen = completedSession.answers[q.id];
-         let isCorrect = false;
-         
-         if (chosen !== undefined) {
-             if (q.type === 'numerical') {
-                  const extractedSelected = String(chosen).match(/-?\d+(\.\d+)?/);
-                  const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-                  const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-                  const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-                  isCorrect = (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect);
-             } else {
-                 isCorrect = (chosen === q.correctOption);
-             }
-             if (isCorrect) correctCount++;
-             else incorrectCount++;
-             
-             const timeSpent = completedSession.timeSpent[q.id] || 0;
-             if (!isCorrect && timeSpent < 15) {
-                guessedAnswers++;
-             }
-         }
-         
-         questionLevelData.push({
-            q_id: q.id.toString(),
-            subject: q.subject,
-            topic: q.topic || 'General',
-            difficulty: 'Medium',
-            student_answer: chosen !== undefined ? String(chosen) : "",
-            correct_answer: q.correctAnswerText || String(q.correctOption),
-            is_correct: isCorrect,
-            time_spent_seconds: completedSession.timeSpent[q.id] || 0,
-            global_average_time_seconds: 90
-         });
+        const chosen = completedSession.answers[q.id];
+        let isCorrect = false;
+
+        if (chosen !== undefined) {
+          if (q.type === 'numerical') {
+            const extractedSelected = String(chosen).match(/-?\d+(\.\d+)?/);
+            const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
+            const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
+            const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
+            isCorrect = (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect);
+          } else {
+            isCorrect = (chosen === q.correctOption);
+          }
+          if (isCorrect) correctCount++;
+          else incorrectCount++;
+
+          const timeSpent = completedSession.timeSpent[q.id] || 0;
+          if (!isCorrect && timeSpent < 15) {
+            guessedAnswers++;
+          }
+        }
+
+        questionLevelData.push({
+          q_id: q.id.toString(),
+          subject: q.subject,
+          topic: q.topic || 'General',
+          difficulty: 'Medium',
+          student_answer: chosen !== undefined ? String(chosen) : "",
+          correct_answer: q.correctAnswerText || String(q.correctOption),
+          is_correct: isCorrect,
+          time_spent_seconds: completedSession.timeSpent[q.id] || 0,
+          global_average_time_seconds: 90
+        });
       });
-      
+
       const totalScore = completedSession.score || 0;
       const maxScore = questions.length * 4;
       const totalTimeTaken = Object.values(completedSession.timeSpent).reduce((a, b) => a + b, 0);
       const accuracy = (correctCount + incorrectCount) > 0 ? (correctCount / (correctCount + incorrectCount)) * 100 : 0;
-      
+
       const payload = {
-         student_id: "current-user",
-         exam_name: activeExam!.name,
-         total_score: totalScore,
-         max_score: maxScore,
-         behavior_summary: {
-           total_time_taken_seconds: totalTimeTaken,
-           accuracy_percentage: accuracy,
-           guessed_answers_detected: guessedAnswers
-         },
-         question_level_data: questionLevelData
+        student_id: "current-user",
+        exam_name: activeExam!.name,
+        total_score: totalScore,
+        max_score: maxScore,
+        behavior_summary: {
+          total_time_taken_seconds: totalTimeTaken,
+          accuracy_percentage: accuracy,
+          guessed_answers_detected: guessedAnswers
+        },
+        question_level_data: questionLevelData
       };
       
       const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/attempts/${attemptId}/analytics`, {
@@ -716,42 +716,42 @@ export default function App() {
 
         if (ansRes.ok && activeExam) {
           const answersMap = await ansRes.json();
-          
+
           finalQuestions = activeExam.questions.map(q => {
             let correctOpt = -1;
             const ansStr = answersMap[q.id];
             if (ansStr) {
-               const cleanStr = String(ansStr).trim().toUpperCase();
-               if (cleanStr.startsWith('A.') || cleanStr.startsWith('A ') || cleanStr === 'A' || cleanStr === '1') correctOpt = 0;
-               else if (cleanStr.startsWith('B.') || cleanStr.startsWith('B ') || cleanStr === 'B' || cleanStr === '2') correctOpt = 1;
-               else if (cleanStr.startsWith('C.') || cleanStr.startsWith('C ') || cleanStr === 'C' || cleanStr === '3') correctOpt = 2;
-               else if (cleanStr.startsWith('D.') || cleanStr.startsWith('D ') || cleanStr === 'D' || cleanStr === '4') correctOpt = 3;
+              const cleanStr = String(ansStr).trim().toUpperCase();
+              if (cleanStr.startsWith('A.') || cleanStr.startsWith('A ') || cleanStr === 'A' || cleanStr === '1') correctOpt = 0;
+              else if (cleanStr.startsWith('B.') || cleanStr.startsWith('B ') || cleanStr === 'B' || cleanStr === '2') correctOpt = 1;
+              else if (cleanStr.startsWith('C.') || cleanStr.startsWith('C ') || cleanStr === 'C' || cleanStr === '3') correctOpt = 2;
+              else if (cleanStr.startsWith('D.') || cleanStr.startsWith('D ') || cleanStr === 'D' || cleanStr === '4') correctOpt = 3;
             }
             return { ...q, correctOption: correctOpt, correctAnswerText: ansStr };
           });
 
           setActiveExam({ ...activeExam, questions: finalQuestions });
-          
+
           let score = 0;
           finalQuestions.forEach((q) => {
-             const selected = session.answers[q.id];
-             if (selected !== undefined) {
-               if (q.type === 'numerical') {
-                 const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
-                 const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-                 const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-                 const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
+            const selected = session.answers[q.id];
+            if (selected !== undefined) {
+              if (q.type === 'numerical') {
+                const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
+                const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
+                const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
+                const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
 
-                 if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
-                   score += 4;
-                 } else {
-                   score -= 1; // Assuming JEE Advanced rules: -1 for incorrect numerical too? Or 0?
-                 }
-               } else {
-                 if (selected === q.correctOption) score += 4;
-                 else score -= 1;
-               }
-             }
+                if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
+                  score += 4;
+                } else {
+                  score -= 1; // Assuming JEE Advanced rules: -1 for incorrect numerical too? Or 0?
+                }
+              } else {
+                if (selected === q.correctOption) score += 4;
+                else score -= 1;
+              }
+            }
           });
           newSession.score = score;
         }
@@ -808,24 +808,24 @@ export default function App() {
         const postLoginAction = localStorage.getItem('postLoginAction');
         if (postLoginAction === 'startFirstMockTest') {
           localStorage.removeItem('postLoginAction');
-          
+
           // Fetch the first exam and navigate to its instructions
           fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
           })
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.length > 0) {
-              navigate('/instructions/' + data[0].paper_id, { replace: true });
-            } else {
-              navigate('/question-papers', { replace: true });
-            }
-          })
-          .catch(err => {
-            console.error("Failed to fetch exams for post-login action:", err);
-            navigate('/dashboard', { replace: true });
-          });
-          
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.length > 0) {
+                navigate('/instructions/' + data[0].paper_id, { replace: true });
+              } else {
+                navigate('/question-papers', { replace: true });
+              }
+            })
+            .catch(err => {
+              console.error("Failed to fetch exams for post-login action:", err);
+              navigate('/dashboard', { replace: true });
+            });
+
         } else if (user.role.toLowerCase() === 'admin') {
           navigate('/admin', { replace: true });
         } else {
@@ -842,8 +842,8 @@ export default function App() {
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={
             isLoading ? <div className="min-h-screen flex items-center justify-center">Loading...</div> :
-            user ? <Navigate to={user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard'} replace /> : 
-            <Navigate to="/home" replace />
+              user ? <Navigate to={user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard'} replace /> :
+                <Navigate to="/home" replace />
           } />
           <Route path="/home" element={
             <motion.div
@@ -862,15 +862,15 @@ export default function App() {
                     fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
                       headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
                     })
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data && data.length > 0) {
-                        navigate('/instructions/' + data[0].paper_id);
-                      } else {
-                        navigate('/question-papers');
-                      }
-                    })
-                    .catch(err => console.error(err));
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data && data.length > 0) {
+                          navigate('/instructions/' + data[0].paper_id);
+                        } else {
+                          navigate('/question-papers');
+                        }
+                      })
+                      .catch(err => console.error(err));
                   }
                 }}
                 onGoToDashboard={handleGoToDashboard}

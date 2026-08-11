@@ -26,6 +26,7 @@ export default function ReportScreen({
   const [activeTab, setActiveTab] = useState<'insights' | 'solutions'>('insights');
   const [selectedSolutionIndex, setSelectedSolutionIndex] = useState(0);
   const [focusGenerating, setFocusGenerating] = useState<string | null>(null);
+  const [showMobileReviewGrid, setShowMobileReviewGrid] = useState(false);
 
   const normalizeSubject = (subj?: string | null): string => {
     if (!subj) return 'Physics';
@@ -598,9 +599,20 @@ export default function ReportScreen({
           /* Answer Key and Solutions panel */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex-1 overflow-hidden min-h-[500px]">
 
-            {/* Left grid question navigator (Colspan 4) */}
-            <div className="lg:col-span-4 border-r border-slate-200 p-2 overflow-y-auto max-h-[520px]">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3 px-1">Questions Review Grid</span>
+            {/* Left grid question navigator (Colspan 4) -> Slider on mobile */}
+            {showMobileReviewGrid && (
+              <div 
+                className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+                onClick={() => setShowMobileReviewGrid(false)}
+              />
+            )}
+            <div className={`fixed left-0 top-0 bottom-0 z-50 lg:static lg:z-auto w-[300px] lg:w-auto bg-white lg:bg-transparent lg:col-span-4 border-r border-slate-200 p-4 lg:p-2 overflow-y-auto max-h-screen lg:max-h-[520px] shadow-xl lg:shadow-none transition-transform duration-300 ease-in-out ${showMobileReviewGrid ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+              <div className="flex justify-between items-center mb-4 lg:mb-3 px-1">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Questions Review Grid</span>
+                <button onClick={() => setShowMobileReviewGrid(false)} className="lg:hidden text-slate-500 hover:text-slate-800">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
 
               <div className="grid grid-cols-5 gap-2">
                 {exam.questions.map((q, idx) => {
@@ -635,7 +647,10 @@ export default function ReportScreen({
                   return (
                     <button
                       key={q.id}
-                      onClick={() => setSelectedSolutionIndex(idx)}
+                      onClick={() => {
+                        setSelectedSolutionIndex(idx);
+                        if (window.innerWidth < 1024) setShowMobileReviewGrid(false);
+                      }}
                       className={`h-9 rounded border text-xs font-bold flex items-center justify-center relative cursor-pointer ${colorClass} ${isActive ? 'ring-2 ring-blue-900 ring-offset-1 z-10 font-black' : ''
                         }`}
                     >
@@ -651,16 +666,27 @@ export default function ReportScreen({
             </div>
 
             {/* Right Question Solution Viewer (Colspan 8) */}
-            <div className="lg:col-span-8 p-4 flex flex-col justify-between overflow-y-auto max-h-[520px] gap-6 text-slate-800">
+            <div className="lg:col-span-8 p-4 flex flex-col justify-start overflow-y-auto max-h-[520px] gap-6 text-slate-800">
+
+              {/* Mobile Question Palette Button */}
+              <button 
+                onClick={() => setShowMobileReviewGrid(true)}
+                className="lg:hidden w-full flex justify-center items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-2.5 rounded-lg font-bold text-sm shadow-sm transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>format_list_bulleted</span>
+                <span>Question Palette</span>
+              </button>
 
               {/* Question identity */}
               <div className="space-y-4">
 
                 <div className="flex justify-between items-center text-xs font-bold pb-2 border-b border-slate-150">
-                  <span className="text-slate-800">Question {selectedQuestion.id} • {actualSubject}</span>
-                  <span className="text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10px]">
-                    {selectedQuestion.type}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-800">Question {selectedQuestion.id} • {actualSubject}</span>
+                    <span className="text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10px]">
+                      {selectedQuestion.type}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Question body text */}
@@ -750,20 +776,21 @@ export default function ReportScreen({
                 </div>
 
                 {/* Score outcome & time indicator banner (bottom) */}
-                <div className="p-3 bg-slate-50 border border-slate-150 rounded-lg flex items-center justify-between text-xs font-semibold">
+                <div className="p-3 bg-slate-50 border border-slate-150 rounded-lg flex items-center justify-between gap-3 text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-900" />
-                    <span className="text-slate-500">
-                      Time spent: <strong className="text-slate-800">{session.timeSpent[selectedQuestion.id] || 0} seconds</strong>
-                      <span className="ml-2 text-slate-400">
-                        • Est. time: <strong className="text-slate-700">{formatTimeSpent(estimatedTime)}</strong>
-                      </span>
-                    </span>
+                    <Clock className="w-5 h-5 text-blue-900 shrink-0" />
+                    <div className="text-slate-500 flex flex-col gap-0.5 leading-tight">
+                      <span>Time spent: <strong className="text-slate-800">{session.timeSpent[selectedQuestion.id] || 0} seconds</strong></span>
+                      <span className="text-slate-400">Est. time: <strong className="text-slate-700">{formatTimeSpent(estimatedTime)}</strong></span>
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="shrink-0 text-right">
                     {session.answers[selectedQuestion.id] === undefined ? (
-                      <span className="text-slate-500 bg-slate-200/50 border border-slate-300 px-2 py-1 rounded">Unattempted (+0 Marks)</span>
+                      <div className="flex flex-col items-center justify-center bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg text-slate-600 shadow-sm">
+                        <span className="font-bold text-xs uppercase tracking-wide">Unattempted</span>
+                        <span className="font-semibold text-[10px]">+0 Marks</span>
+                      </div>
                     ) : (selectedQuestion.type === 'numerical' ? (
                       (() => {
                         const extractedSelected = String(session.answers[selectedQuestion.id]).match(/-?\d+(\.\d+)?/);
@@ -773,9 +800,15 @@ export default function ReportScreen({
                         return !isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect;
                       })()
                     ) : session.answers[selectedQuestion.id] === actualCorrectOption) ? (
-                      <span className="text-emerald-800 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded">Correct (+4 Marks)</span>
+                      <div className="flex flex-col items-center justify-center bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg text-emerald-700 shadow-sm">
+                        <span className="font-bold text-xs uppercase tracking-wide">Correct</span>
+                        <span className="font-bold text-[10px] text-emerald-600">+4 Marks</span>
+                      </div>
                     ) : (
-                      <span className="text-red-800 bg-red-100 border border-red-200 px-2 py-1 rounded">Incorrect (-1 Mark)</span>
+                      <div className="flex flex-col items-center justify-center bg-red-50 border border-red-200 px-3 py-1 rounded-lg text-red-700 shadow-sm">
+                        <span className="font-bold text-xs uppercase tracking-wide">Incorrect</span>
+                        <span className="font-bold text-[10px] text-red-600">-1 Mark</span>
+                      </div>
                     )}
                   </div>
                 </div>

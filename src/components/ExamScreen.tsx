@@ -25,6 +25,7 @@ export default function ExamScreen({
   const [activeSubject, setActiveSubject] = useState<string>('Mathematics');
   const [showCalculator, setShowCalculator] = useState(false);
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
+  const [showMobileQuestionsPane, setShowMobileQuestionsPane] = useState(false);
 
   // Prevent going back to instructions page
   useEffect(() => {
@@ -39,6 +40,11 @@ export default function ExamScreen({
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState('');
   const [showFullscreenPopup, setShowFullscreenPopup] = useState(!document.fullscreenElement);
+  
+  // Resizable split pane state
+  const [questionHeight, setQuestionHeight] = useState(50); // percentage
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
 
   const activeQuestion = exam.questions[currentQuestionIndex];
 
@@ -131,6 +137,40 @@ export default function ExamScreen({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Split pane drag logic
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newHeight = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+      if (newHeight > 20 && newHeight < 80) {
+        setQuestionHeight(newHeight);
+      }
+    };
+    
+    const handlePointerUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+    
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
     };
   }, []);
 
@@ -463,17 +503,17 @@ export default function ExamScreen({
       <header className="w-full bg-white border-b border-slate-200 shrink-0 relative z-20 h-4 shadow-sm"></header>
 
       {/* Candidate Profile Strip */}
-      <div className="w-full bg-[#f0f4f7] border-b border-slate-200 flex px-8 py-2.5 items-center shrink-0 z-10 text-xs shadow-sm">
-        <div className="flex items-center gap-6 flex-1">
-          <div className="w-20 h-20 bg-white border-2 border-slate-300 rounded shadow-sm flex items-center justify-center shrink-0">
+      <div className="w-full bg-[#f0f4f7] border-b border-slate-200 flex px-4 md:px-8 py-2 md:py-2.5 items-center justify-center md:justify-start shrink-0 z-10 text-xs shadow-sm">
+        <div className="flex items-center gap-6 w-full md:w-auto">
+          <div className="hidden md:flex w-20 h-20 bg-white border-2 border-slate-300 rounded shadow-sm items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-5xl text-slate-400">person</span>
           </div>
-          <div className="flex flex-col leading-tight gap-1.5">
-            <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Candidate Name :</span> <span className="font-bold text-orange-500 text-sm">{user?.name || "Student"}</span></div>
-            <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Exam Name :</span> <span className="font-bold text-orange-500 text-sm">{exam.name}</span></div>
-            <div className="flex"><span className="w-32 text-slate-600 font-semibold text-sm">Subject Name :</span> <span className="font-bold text-orange-500 text-sm">{activeSubject}</span></div>
-            <div className="flex items-center mt-1">
-              <span className="w-32 text-slate-600 font-semibold text-sm">Remaining Time :</span>
+          <div className="flex flex-col leading-tight gap-1.5 w-full md:w-auto items-center md:items-start">
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Candidate Name :</span> <span className="font-bold text-orange-500 text-sm">{user?.name || "Student"}</span></div>
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Exam Name :</span> <span className="font-bold text-orange-500 text-sm">{exam.name}</span></div>
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Subject Name :</span> <span className="font-bold text-orange-500 text-sm">{activeSubject}</span></div>
+            <div className="flex items-center md:mt-1 justify-center md:justify-start w-full">
+              <span className="md:w-32 text-slate-600 font-semibold text-sm mr-2 md:mr-0">Remaining Time :</span>
               <span className="bg-[#2a84c8] text-white font-mono font-bold px-3 py-0.5 rounded-full text-sm shadow-sm">
                 {formatTime(session.secondsRemaining)}
               </span>
@@ -491,91 +531,98 @@ export default function ExamScreen({
 
 
           {/* Question Metadata Bar */}
-          <div className="flex justify-between items-center px-6 py-2.5 bg-white border-b border-slate-200 shrink-0 font-semibold">
-            <div className="flex items-center gap-4">
+          <div className="flex justify-between items-center px-4 sm:px-6 py-2.5 bg-white border-b border-slate-200 shrink-0 font-semibold">
+            <div className="flex items-center gap-2 sm:gap-4">
               <span className="text-sm font-bold text-slate-900">Question {activeQuestion.id}</span>
-              <span className="text-sm font-bold text-blue-900 bg-blue-50 px-3 py-1 rounded border border-blue-200">
+              <span className="text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 px-2 sm:px-3 py-1 rounded border border-blue-200">
                 {activeQuestion.type}
               </span>
             </div>
 
-            <div className="flex items-center gap-4">
-              {/* 
-              <button className="flex items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors">
-                <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
-                <span>Report Issue</span>
-              </button>
-              */}
-
-              {/* 
-              <button
-                onClick={() => setShowCalculator(!showCalculator)}
-                className="flex items-center gap-1 text-blue-900 hover:bg-blue-50 border border-blue-100 px-2.5 py-1 rounded transition-colors"
+            <div className="flex items-center gap-2 sm:gap-4">
+              <button 
+                onClick={() => setShowMobileQuestionsPane(true)}
+                className="lg:hidden flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md font-bold text-xs shadow-md transition-all active:scale-95"
               >
-                <Calculator className="w-3.5 h-3.5 text-blue-700" />
-                <span>Virtual Calculator</span>
-              </button> 
-              */}
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>format_list_bulleted</span>
+                <span>Questions</span>
+              </button>
             </div>
           </div>
 
           {/* Active Question Content */}
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+          <div ref={containerRef} className="flex-1 flex flex-col min-h-0 relative bg-white">
             {/* Question Stem Text */}
-            <div className="text-slate-900 leading-relaxed font-normal text-base w-full max-w-full overflow-x-auto">
-              <div className="whitespace-pre-wrap break-words"><MathText text={activeQuestion.text} diagramsText={activeQuestion.diagrams} /></div>
+            <div 
+              style={{ height: `${questionHeight}%` }}
+              className="overflow-y-auto p-4 sm:p-6"
+            >
+              <div className="text-slate-900 leading-relaxed font-normal text-base w-full max-w-full overflow-x-auto">
+                <div className="whitespace-pre-wrap break-words"><MathText text={activeQuestion.text} diagramsText={activeQuestion.diagrams} /></div>
+              </div>
             </div>
 
-            <hr className="border-slate-150" />
+            {/* Resizer Divider */}
+            <div 
+              onPointerDown={handlePointerDown}
+              className="h-3 sm:h-2 bg-slate-200/50 hover:bg-slate-300 active:bg-blue-300 cursor-row-resize shrink-0 flex justify-center items-center group transition-colors touch-none"
+            >
+              <div className="w-12 h-1 bg-slate-400/70 rounded-full group-hover:bg-blue-600 transition-colors"></div>
+            </div>
 
             {/* Answer Options or Numerical Input */}
-            <div className="flex flex-col gap-3 max-w-3xl">
-              {activeQuestion.type?.toLowerCase().includes('numerical') ? (
-                <div className="p-4 border border-slate-200 rounded-lg bg-slate-50">
-                  <label className="block text-sm font-bold text-slate-700 mb-2">
-                    Enter your numerical answer (integer only):
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={session.answers[activeQuestion.id] ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9-]/g, '');
-                      // Only call handleSelectOption if it's a valid integer or minus sign
-                      if (val === '' || val === '-' || !isNaN(parseInt(val, 10))) {
-                        handleSelectOption(val);
-                      }
-                    }}
-                    placeholder="Type your answer here..."
-                    className="w-full p-3 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-base text-slate-800 resize-none"
-                  />
-                </div>
-              ) : (
-                activeQuestion.options.map((optionStr, index) => {
-                  const isSelected = session.answers[activeQuestion.id] === index;
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleSelectOption(index)}
-                      className={`flex items-center p-4 border rounded-lg cursor-pointer text-left transition-all group ${isSelected
-                        ? 'border-blue-900 bg-blue-50/20'
-                        : 'border-slate-200 hover:bg-slate-50/50'
-                        }`}
-                    >
-                      {/* Custom Styled Radio circular bullet */}
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all ${isSelected
-                        ? 'border-blue-900 bg-blue-500'
-                        : 'border-slate-300 group-hover:border-blue-900'
-                        }`}>
-                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
-                      </div>
+            <div 
+              style={{ height: `${100 - questionHeight}%` }}
+              className="overflow-y-auto p-4 sm:p-6 bg-slate-50/50"
+            >
+              <div className="flex flex-col gap-3 max-w-3xl">
+                {activeQuestion.type?.toLowerCase().includes('numerical') ? (
+                  <div className="p-4 border border-slate-200 rounded-lg bg-white">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                      Enter your numerical answer (integer only):
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={session.answers[activeQuestion.id] ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9-]/g, '');
+                        // Only call handleSelectOption if it's a valid integer or minus sign
+                        if (val === '' || val === '-' || !isNaN(parseInt(val, 10))) {
+                          handleSelectOption(val);
+                        }
+                      }}
+                      placeholder="Type your answer here..."
+                      className="w-full p-3 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-base text-slate-800 resize-none"
+                    />
+                  </div>
+                ) : (
+                  activeQuestion.options.map((optionStr, index) => {
+                    const isSelected = session.answers[activeQuestion.id] === index;
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleSelectOption(index)}
+                        className={`flex items-center p-4 border rounded-lg cursor-pointer text-left transition-all group ${isSelected
+                          ? 'border-blue-900 bg-blue-50'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                      >
+                        {/* Custom Styled Radio circular bullet */}
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all shrink-0 ${isSelected
+                          ? 'border-blue-900 bg-blue-500'
+                          : 'border-slate-300 group-hover:border-blue-900'
+                          }`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
+                        </div>
 
-                      <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 font-bold' : 'text-slate-700'}`}>
-                        <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
-                      </span>
-                    </button>
-                  );
-                })
-              )}
+                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 font-bold' : 'text-slate-700'}`}>
+                          <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
 
@@ -640,11 +687,24 @@ export default function ExamScreen({
           </div>
         </section>
 
-        {/* Right Pane */}
-        <aside className="w-[340px] flex flex-col bg-white border-l border-slate-300 shrink-0 z-30 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] overflow-hidden">
+        {/* Right Pane Slider (Mobile) / Sidebar (Desktop) */}
+        {showMobileQuestionsPane && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden" 
+            onClick={() => setShowMobileQuestionsPane(false)}
+          />
+        )}
+        <aside className={`fixed right-0 top-0 bottom-0 z-40 lg:static lg:z-30 w-[300px] sm:w-[340px] lg:w-[340px] flex flex-col bg-white border-l border-slate-300 shrink-0 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] overflow-hidden transition-transform duration-300 ease-in-out ${showMobileQuestionsPane ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+          {/* Mobile Drawer Header */}
+          <div className="lg:hidden flex justify-between items-center p-4 bg-slate-50 border-b border-slate-200 shrink-0">
+            <h3 className="font-bold text-slate-800">Question Palette</h3>
+            <button onClick={() => setShowMobileQuestionsPane(false)} className="text-slate-500 hover:text-slate-800">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* NTA Color State Legends */}
-          <div className="p-4 border-b border-slate-300 bg-white grid grid-cols-2 gap-x-2 gap-y-4 text-xs leading-tight text-slate-700">
+          <div className="p-4 border-b border-slate-300 bg-white grid grid-cols-2 gap-x-2 gap-y-4 text-xs leading-tight text-slate-700 shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-7 bg-[#f0f0f0] border border-slate-300 rounded flex items-center justify-center font-bold text-slate-700 shadow-sm">{unvisitedCount}</div>
               <span className="flex-1">Not Visited</span>
@@ -724,7 +784,12 @@ export default function ExamScreen({
                 return (
                   <button
                     key={q.id}
-                    onClick={() => handleJumpToQuestion(idx)}
+                    onClick={() => {
+                      handleJumpToQuestion(idx);
+                      if (window.innerWidth < 1024) {
+                        setShowMobileQuestionsPane(false);
+                      }
+                    }}
                     style={style}
                     className={`w-11 h-10 text-sm font-bold flex items-center justify-center relative hover:opacity-85 transition-all cursor-pointer shadow-sm ${btnClass} ${isActive ? 'ring-2 ring-blue-500 ring-offset-2 z-10' : ''
                       }`}

@@ -91,32 +91,34 @@ export default function DashboardScreen({
   return (
     <div className="bg-slate-50 min-h-screen text-slate-900 font-sans flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-16 flex justify-between items-center px-6 max-w-7xl mx-auto w-full shrink-0">
-        <div className="flex items-center gap-8">
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200 h-16 flex justify-between items-center px-4 md:px-6 max-w-7xl mx-auto w-full shrink-0">
+        <div className="flex items-center gap-4 md:gap-8 min-w-0">
           <span 
-            className="text-xl font-bold tracking-tight text-blue-900 flex items-center gap-1.5 cursor-pointer"
+            className="text-lg md:text-xl font-bold tracking-tight text-blue-900 flex items-center gap-1.5 cursor-pointer shrink-0"
             onClick={() => setActiveTab('home')}
           >
-            <Award className="w-6 h-6 text-blue-700" />
+            <Award className="w-5 h-5 md:w-6 md:h-6 text-blue-700" />
             ExamSimula
           </span>
           <nav className="hidden md:flex gap-6">
             <button onClick={() => setActiveTab('home')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'home' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Home</button>
             <button onClick={() => navigate('/question-papers')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'exams' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Exams</button>
-            {/* <button onClick={() => setActiveTab('analytics')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'analytics' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Analytics</button>
-            <button onClick={() => setActiveTab('library')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'library' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Library</button> */}
           </nav>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-blue-700 font-bold bg-blue-50 border border-blue-200 px-3.5 py-1 rounded-full">
-            <Target className="w-4 h-4 text-blue-500" />
-            <span className="text-xs">Tests this month: {overview?.tests_in_month || 0}</span>
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-2 text-blue-700 font-bold bg-blue-50 border border-blue-200 px-2 md:px-3.5 py-1 rounded-full whitespace-nowrap">
+            <Target className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500" />
+            <span className="text-[10px] md:text-xs">
+              <span className="hidden sm:inline">Tests this month: </span>
+              <span className="sm:hidden">Tests: </span>
+              {overview?.tests_in_month || 0}
+            </span>
           </div>
 
           <div className="relative">
-            <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 hover:ring-2 hover:ring-blue-600/30 transition-all cursor-pointer">
-              <User className="w-5 h-5 text-slate-600" />
+            <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-slate-100 flex items-center justify-center border border-slate-300 hover:ring-2 hover:ring-blue-600/30 transition-all cursor-pointer">
+              <User className="w-4 h-4 md:w-5 md:h-5 text-slate-600" />
             </button>
             
             {showUserMenu && (
@@ -134,6 +136,12 @@ export default function DashboardScreen({
           </div>
         </div>
       </header>
+
+      {/* Mobile Navigation Bar */}
+      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-2 flex justify-center gap-8 shrink-0">
+        <button onClick={() => setActiveTab('home')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'home' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Home</button>
+        <button onClick={() => navigate('/question-papers')} className={`text-sm font-semibold pb-1 border-b-2 transition-all ${activeTab === 'exams' ? 'text-blue-900 border-blue-900' : 'text-slate-500 border-transparent hover:text-blue-900'}`}>Exams</button>
+      </div>
 
       {/* Main Canvas */}
       <main className="flex-grow w-full max-w-7xl mx-auto p-4 md:p-8 overflow-y-auto">

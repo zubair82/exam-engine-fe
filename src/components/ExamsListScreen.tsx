@@ -13,6 +13,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const { token, logout, user } = useAuth();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [exams, setExams] = useState<{id: string, title: string, paper_id: number, total_questions: number, duration_seconds: number, status: string}[]>([]);
 
@@ -126,12 +127,12 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
         {/* Tab Navigation */}
         <div className="mb-8 border-b border-outline-variant">
           <div className="flex gap-8 overflow-x-auto pb-px">
-            <button className="pb-4 border-b-2 border-primary text-primary text-headline-sm flex items-center gap-2 font-semibold">
+            <button className="pb-4 border-b-2 border-primary text-primary text-title-md md:text-headline-sm flex items-center gap-2 font-semibold whitespace-nowrap">
               Full Mocks
               <span className="text-label-md bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded-full font-bold">{exams.length}</span>
             </button>
-            <button className="pb-4 border-b-2 border-transparent text-on-surface-variant text-headline-sm hover:text-primary transition-colors font-semibold">Subject Tests</button>
-            <button className="pb-4 border-b-2 border-transparent text-on-surface-variant text-headline-sm hover:text-primary transition-colors font-semibold">Previous Year Papers</button>
+            <button className="pb-4 border-b-2 border-transparent text-on-surface-variant text-title-md md:text-headline-sm hover:text-primary transition-colors font-semibold whitespace-nowrap">Subject Tests</button>
+            <button className="pb-4 border-b-2 border-transparent text-on-surface-variant text-title-md md:text-headline-sm hover:text-primary transition-colors font-semibold whitespace-nowrap">Previous Year Papers</button>
           </div>
         </div>
 
@@ -140,60 +141,47 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
           <aside className="w-full lg:w-64 flex-shrink-0 space-y-6">
             <div className="bg-surface border border-outline-variant p-5 rounded-xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-headline-sm text-primary font-semibold">Filters</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-headline-sm text-primary font-semibold">Filters</h3>
+                  <button 
+                    className="lg:hidden bg-surface-container hover:bg-surface-container-high px-3 py-1 rounded-full text-label-md text-primary transition-colors flex items-center gap-1"
+                    onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                  >
+                    <span className="material-symbols-outlined" style={{fontSize: '18px'}}>tune</span>
+                    {isFiltersOpen ? 'Hide' : 'Show'}
+                  </button>
+                </div>
                 <button className="text-label-md text-primary font-semibold hover:underline">Clear all</button>
               </div>
               
               {/* Filter Groups */}
-              <div className="space-y-6">
-                {/* Difficulty filter commented out
-                <div>
-                  <label className="block text-label-lg font-semibold mb-3">Difficulty</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
-                      <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Easy</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input defaultChecked className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
-                      <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Medium</span>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
-                      <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Hard</span>
-                    </label>
-                  </div>
-                </div>
-                
-                <hr className="border-outline-variant"/>
-                */}
-                
+              <div className={`space-y-6 ${!isFiltersOpen ? 'hidden lg:block' : ''}`}>
                 {/* Subjects */}
                 <div>
                   <label className="block text-label-lg font-semibold mb-3">Subject</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="flex flex-row lg:flex-col gap-4 lg:gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 hide-scrollbar">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input defaultChecked className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Physics</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input defaultChecked className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Chemistry</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input defaultChecked className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Mathematics</span>
                     </label>
                   </div>
                 </div>
                 
-                <hr className="border-outline-variant"/>
+                <hr className="border-outline-variant hidden lg:block"/>
                 
                 {/* Status */}
                 <div>
                   <label className="block text-label-lg font-semibold mb-3">Status</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="flex flex-row lg:flex-col gap-4 lg:gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 hide-scrollbar">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input 
                         checked={statusFilter === 'All Tests'} 
                         onChange={() => { setStatusFilter('All Tests'); setCurrentPage(1); }} 
@@ -203,7 +191,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                       />
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">All Tests</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input 
                         checked={statusFilter === 'In Progress'} 
                         onChange={() => { setStatusFilter('In Progress'); setCurrentPage(1); }} 
@@ -213,7 +201,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                       />
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">In Progress</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input 
                         checked={statusFilter === 'Attempted'} 
                         onChange={() => { setStatusFilter('Attempted'); setCurrentPage(1); }} 
@@ -223,7 +211,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                       />
                       <span className="text-body-sm text-on-surface-variant group-hover:text-on-surface">Attempted</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
+                    <label className="flex items-center gap-2 cursor-pointer group whitespace-nowrap">
                       <input 
                         checked={statusFilter === 'Unattempted'} 
                         onChange={() => { setStatusFilter('Unattempted'); setCurrentPage(1); }} 
@@ -238,8 +226,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
               </div>
             </div>
             
-            {/* Promo Card */}
-            <div className="bg-primary-container p-6 rounded-xl relative overflow-hidden text-on-primary">
+            {/* Promo Card (Desktop) */}
+            <div className="hidden lg:block bg-primary-container p-6 rounded-xl relative overflow-hidden text-on-primary">
               <div className="relative z-10">
                 <p className="text-label-lg text-on-primary-container mb-2 font-semibold">PRO PLAN</p>
                 <h4 className="text-headline-sm mb-4 font-semibold">Unlock 100+ Advanced Mocks</h4>
@@ -253,14 +241,14 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
 
           {/* Test Grid */}
           <div className="flex-1">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <p className="text-body-sm text-on-surface-variant">Showing {(() => {
                 const filtered = statusFilter === 'All Tests' ? exams : exams.filter(e => e.status === statusFilter);
                 return filtered.length;
               })()} mock tests for <span className="font-bold text-on-surface">JEE Main</span></p>
-              <div className="flex items-center gap-2">
-                <span className="text-label-md text-on-surface-variant">Sort by:</span>
-                <select className="bg-transparent border-none text-label-md font-bold text-primary focus:ring-0 cursor-pointer outline-none">
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-label-md text-on-surface-variant whitespace-nowrap">Sort by:</span>
+                <select className="bg-transparent border-none text-label-md font-bold text-primary focus:ring-0 cursor-pointer outline-none pl-1">
                   <option>Latest First</option>
                   <option>Difficulty: High to Low</option>
                   <option>Difficulty: Low to High</option>
@@ -370,6 +358,18 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                 </button>
               </div>
             )})()}
+          </div>
+        </div>
+
+        {/* Promo Card (Mobile) */}
+        <div className="lg:hidden mt-8 bg-primary-container p-6 rounded-xl relative overflow-hidden text-on-primary">
+          <div className="relative z-10">
+            <p className="text-label-lg text-on-primary-container mb-2 font-semibold">PRO PLAN</p>
+            <h4 className="text-headline-sm mb-4 font-semibold">Unlock 100+ Advanced Mocks</h4>
+            <button className="bg-on-primary-container text-primary-container px-4 py-2 rounded-lg font-semibold hover:scale-105 transition-transform">Upgrade Now</button>
+          </div>
+          <div className="absolute -right-4 -bottom-4 opacity-10">
+            <span className="material-symbols-outlined" style={{ fontSize: '120px' }}>military_tech</span>
           </div>
         </div>
       </main>

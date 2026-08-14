@@ -307,21 +307,20 @@ export default function ReportScreen({
             </div>
 
             {/* Score pill */}
-            <div className="flex items-center gap-6 divide-x divide-slate-150">
-              <div className="pr-6 text-center">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Obtained Score</span>
-                <span className="text-4xl font-extrabold text-blue-900 tracking-tight">{totalObtained}</span>
-                <span className="text-sm text-slate-400 font-semibold"> / {maxScore}</span>
+            <div className="flex items-center justify-between md:justify-end gap-2 md:gap-6 divide-x divide-slate-150 w-full md:w-auto">
+              <div className="pr-2 md:pr-6 text-center flex-1 md:flex-none">
+                <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wide block leading-tight">Obtained Score</span>
+                <span className="text-3xl md:text-4xl font-extrabold text-blue-900 tracking-tight block mt-1">{totalObtained}<span className="text-xs md:text-sm text-slate-400 font-semibold"> / {maxScore}</span></span>
               </div>
 
-              <div className="px-6 text-center">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Accuracy Rate</span>
-                <span className="text-3xl font-bold text-emerald-600 block mt-1">{accuracy}%</span>
+              <div className="px-2 md:px-6 text-center flex-1 md:flex-none">
+                <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wide block leading-tight">Accuracy Rate</span>
+                <span className="text-2xl md:text-3xl font-bold text-emerald-600 block mt-1 md:mt-2">{accuracy}%</span>
               </div>
 
-              <div className="pl-6 text-center">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide block">Cheating Warnings</span>
-                <span className={`text-xl font-bold block mt-2 ${session.cheatingWarnings > 0 ? 'text-red-500' : 'text-slate-500'}`}>
+              <div className="pl-2 md:pl-6 text-center flex-1 md:flex-none">
+                <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wide block leading-tight">Cheating Warnings</span>
+                <span className={`text-lg md:text-xl font-bold block mt-1 md:mt-2 ${session.cheatingWarnings > 0 ? 'text-red-500' : 'text-slate-500'}`}>
                   {session.cheatingWarnings} alerts
                 </span>
               </div>

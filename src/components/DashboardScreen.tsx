@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Flame, Calendar, BookOpen, Clock, Activity, CheckCircle2, AlertTriangle, Play, Sparkles, AlertCircle, User, LogOut, Target } from 'lucide-react';
+import { Award, Flame, Calendar, BookOpen, Clock, Activity, CheckCircle2, AlertTriangle, Play, Sparkles, AlertCircle, User, LogOut, Target, X } from 'lucide-react';
 import { focusAreaDatabase } from '../data/focusAreas';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -27,6 +27,11 @@ export default function DashboardScreen({
   const [recommendedExam, setRecommendedExam] = useState<any>(null);
   const [loadingExams, setLoadingExams] = useState(true);
   const [overview, setOverview] = useState<any>(null);
+
+  const [showReviseModal, setShowReviseModal] = useState(false);
+  const [revisingArea, setRevisingArea] = useState<{topic: string, subject: string} | null>(null);
+  const [resourceData, setResourceData] = useState<any>(null);
+  const [loadingResource, setLoadingResource] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -85,6 +90,58 @@ export default function DashboardScreen({
       console.error(err);
     } finally {
       setLoadingTopic(null);
+    }
+  };
+
+  const handleReviseConcept = async (topic: string, subject: string) => {
+    setRevisingArea({ topic, subject });
+    setShowReviseModal(true);
+    setLoadingResource(true);
+    setResourceData(null);
+    try {
+      const apiUrl = import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080';
+      
+      // 1. First call POST /api/v1/resources/search-by-tags
+      const response = await fetch(`${apiUrl}/api/v1/resources/search-by-tags`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ subject, tags: [topic] })
+      });
+      
+      let data = null;
+      if (response.ok) {
+        const resJson = await response.json();
+        if (resJson.success && resJson.data && resJson.data.length > 0) {
+          data = resJson.data[0];
+        }
+      }
+
+      // 2. If no resource found, call GET /api/v1/resources/videos fallback
+      if (!data) {
+        const searchParams = new URLSearchParams({
+          subject: subject,
+          topic: topic
+        });
+        const ytResponse = await fetch(`${apiUrl}/api/v1/resources/videos?${searchParams.toString()}`, {
+          headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        if (ytResponse.ok) {
+          const ytJson = await ytResponse.json();
+          if (ytJson.success && ytJson.data && ytJson.data.length > 0) {
+            data = ytJson.data[0];
+          }
+        }
+      }
+      setResourceData(data);
+    } catch (err) {
+      console.error("Error fetching resource:", err);
+    } finally {
+      setLoadingResource(false);
     }
   };
 
@@ -315,10 +372,16 @@ export default function DashboardScreen({
                               </span>
                             </div>
                           </div>
-                          <button onClick={() => handlePracticeTopic(area.topic, area.subject)} disabled={loadingTopic !== null} className="bg-white border border-blue-900 text-blue-900 hover:bg-blue-50 text-xs font-bold py-1.5 px-3.5 rounded transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {loadingTopic === area.topic ? <div className="w-3.5 h-3.5 border-2 border-blue-950 border-t-transparent rounded-full animate-spin"></div> : <Sparkles className="w-3.5 h-3.5" />}
-                            <span>Practice</span>
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleReviseConcept(area.topic, area.subject)} disabled={loadingResource && revisingArea?.topic === area.topic} className="bg-white border border-blue-900 text-blue-900 hover:bg-blue-50 text-xs font-bold py-1.5 px-3.5 rounded transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span>Revise Concept</span>
+                            </button>
+                            {/* <button onClick={() => handlePracticeTopic(area.topic, area.subject)} disabled={loadingTopic !== null} className="bg-blue-900 text-white hover:bg-blue-800 text-xs font-bold py-1.5 px-3.5 rounded transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                              {loadingTopic === area.topic ? <div className="w-3.5 h-3.5 border-2 border-blue-300 border-t-transparent rounded-full animate-spin"></div> : <Sparkles className="w-3.5 h-3.5" />}
+                              <span>Practice</span>
+                            </button> */}
+                          </div>
                         </div>
                         );
                       })}
@@ -342,6 +405,95 @@ export default function DashboardScreen({
           </div>
         </div>
       </footer>
+
+      {/* Revise Concept Modal */}
+      {showReviseModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-blue-700" />
+                Revise Concept: {revisingArea?.topic}
+              </h3>
+              <button onClick={() => setShowReviseModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors hover:bg-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {loadingResource ? (
+                <div className="flex flex-col justify-center items-center h-64 gap-4">
+                  <div className="w-8 h-8 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-slate-500 font-medium">Finding the best resource for you...</p>
+                </div>
+              ) : resourceData ? (
+                <div className="flex flex-col gap-4">
+                  {resourceData.video_id ? (
+                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-900 shadow-inner">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${resourceData.video_id}`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : resourceData.url && resourceData.url.includes('youtube.com/watch') ? (
+                    <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-900 shadow-inner">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${new URL(resourceData.url).searchParams.get('v')}`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 text-center">
+                      <BookOpen className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+                      <h4 className="font-bold text-blue-900 mb-2">Reading Material</h4>
+                      <a href={resourceData.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm font-medium">
+                        Open Resource
+                      </a>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 mb-2">{resourceData.title || revisingArea?.topic}</h4>
+                    {resourceData.description && (
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap">{resourceData.description}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col justify-center items-center h-64 text-center">
+                  <AlertCircle className="w-10 h-10 text-slate-300 mb-3" />
+                  <h4 className="text-base font-bold text-slate-700">No resources found</h4>
+                  <p className="text-sm text-slate-500 max-w-sm mt-1">We couldn't find a specific resource for this topic. Let's go straight to practice!</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+              {/* <button 
+                onClick={() => {
+                  setShowReviseModal(false);
+                  if (revisingArea) {
+                    handlePracticeTopic(revisingArea.topic, revisingArea.subject);
+                  }
+                }} 
+                className="bg-blue-900 text-white font-bold py-2.5 px-6 rounded-lg hover:bg-blue-800 transition-all flex items-center gap-2 w-full sm:w-auto justify-center shadow-sm"
+              >
+                <span>Done Revising &rarr; Go to Practice</span>
+              </button> */}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -40,21 +40,7 @@ export default function LoginScreen() {
             <span className="material-symbols-outlined text-slate-300 group-hover:text-blue-500 transition-colors">chevron_right</span>
           </a>
 
-          <a 
-            href={`${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/google/login?role=ADMIN`}
-            className="w-full flex items-center justify-between p-4 border-2 border-slate-100 rounded-xl hover:border-primary-container hover:bg-primary-container/10 transition-all group"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary-container/20 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-                <Shield className="w-6 h-6" />
-              </div>
-              <div className="text-left">
-                <div className="font-bold text-slate-900">Admin Portal</div>
-                <div className="text-xs text-slate-500 font-medium mt-0.5">Manage students & reports</div>
-              </div>
-            </div>
-            <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">chevron_right</span>
-          </a>
+
         </div>
         
         <div className="bg-slate-50 p-4 text-center border-t border-slate-100">

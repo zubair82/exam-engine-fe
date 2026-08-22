@@ -6,7 +6,6 @@ import DashboardScreen from './components/DashboardScreen';
 import ExamsListScreen from './components/ExamsListScreen';
 import ExamScreen from './components/ExamScreen';
 import ReportScreen from './components/ReportScreen';
-import AdminDashboardScreen from './components/AdminDashboardScreen';
 import LoginScreen from './components/LoginScreen';
 import InstructionsScreen from './components/InstructionsScreen';
 import { Exam, ExamSession, AISuggestion, Subject, Question } from './types';
@@ -826,8 +825,6 @@ export default function App() {
               navigate('/dashboard', { replace: true });
             });
 
-        } else if (user.role.toLowerCase() === 'admin') {
-          navigate('/admin', { replace: true });
         } else {
           navigate('/dashboard', { replace: true });
         }
@@ -842,7 +839,7 @@ export default function App() {
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={
             isLoading ? <div className="min-h-screen flex items-center justify-center">Loading...</div> :
-              user ? <Navigate to={user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard'} replace /> :
+              user ? <Navigate to="/dashboard" replace /> :
                 <Navigate to="/home" replace />
           } />
           <Route path="/home" element={
@@ -997,19 +994,6 @@ export default function App() {
             </ProtectedRoute>
           } />
 
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="w-full h-full"
-              >
-                <AdminDashboardScreen />
-              </motion.div>
-            </ProtectedRoute>
-          } />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </AnimatePresence>

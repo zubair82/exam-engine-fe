@@ -226,7 +226,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
               </div>
             </div>
             
-            {/* Promo Card (Desktop) */}
+            {/* Promo Card (Desktop)
             <div className="hidden lg:block bg-primary-container p-6 rounded-xl relative overflow-hidden text-on-primary">
               <div className="relative z-10">
                 <p className="text-label-lg text-on-primary-container mb-2 font-semibold">PRO PLAN</p>
@@ -237,6 +237,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                 <span className="material-symbols-outlined" style={{ fontSize: '120px' }}>military_tech</span>
               </div>
             </div>
+            */}
           </aside>
 
           {/* Test Grid */}
@@ -361,7 +362,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
           </div>
         </div>
 
-        {/* Promo Card (Mobile) */}
+        {/* Promo Card (Mobile)
         <div className="lg:hidden mt-8 bg-primary-container p-6 rounded-xl relative overflow-hidden text-on-primary">
           <div className="relative z-10">
             <p className="text-label-lg text-on-primary-container mb-2 font-semibold">PRO PLAN</p>
@@ -372,6 +373,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             <span className="material-symbols-outlined" style={{ fontSize: '120px' }}>military_tech</span>
           </div>
         </div>
+        */}
       </main>
 
       {/* Footer */}

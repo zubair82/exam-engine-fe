@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import ThemeToggle from './ThemeToggle';
 
 interface InstructionsScreenProps {
   onProceed: (paperId: number) => void;
@@ -25,30 +26,30 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
   }, [paperId]);
 
   return (
-    <div className="bg-white min-h-screen p-8 font-sans text-slate-800">
+    <div className="bg-white dark:bg-[#1a1e29] min-h-screen p-4 sm:p-8 font-sans text-slate-800 dark:text-slate-200 transition-colors duration-200">
       <AnimatePresence>
         {showFullscreenPopup && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center"
+              className="bg-white dark:bg-[#252b3b] rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center border border-slate-200 dark:border-slate-700/70"
             >
-              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="material-symbols-outlined text-3xl">fullscreen</span>
               </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Full Screen Required</h2>
-              <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Full Screen Required</h2>
+              <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm leading-relaxed">
                 To simulate the actual exam environment, this test must be taken in full screen mode. Please do not switch tabs or exit full screen during the exam, as it may result in automatic submission or warnings.
               </p>
               <div className="flex gap-4">
                 <button 
                   onClick={() => navigate(-1)}
-                  className="flex-1 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-[#1e2330] transition-colors cursor-pointer text-sm"
                 >
                   Cancel
                 </button>
@@ -61,7 +62,7 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
                     }
                     setShowFullscreenPopup(false);
                   }}
-                  className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold transition-colors cursor-pointer text-sm shadow-sm"
                 >
                   Enter Full Screen
                 </button>
@@ -72,35 +73,38 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
       </AnimatePresence>
 
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-center mb-8">Please read the instructions carefully</h1>
+        <div className="flex justify-between items-center mb-8 border-b border-slate-200 dark:border-slate-700/60 pb-4">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Please read the instructions carefully</h1>
+          <ThemeToggle size="md" />
+        </div>
         
-        <div className="space-y-6 text-sm leading-relaxed">
+        <div className="space-y-6 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
           <section>
-            <h2 className="text-lg font-bold underline mb-3">General Instructions:</h2>
+            <h2 className="text-lg font-bold underline mb-3 text-slate-900 dark:text-slate-100">General Instructions:</h2>
             <ol className="list-decimal pl-5 space-y-2">
               <li>Total duration of the examination is {durationMins} min.</li>
               <li>The clock will be set at the server. The countdown timer in the top right corner of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You will not be required to end or submit your examination.</li>
               <li>The Questions Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
                 <ul className="list-none pl-5 mt-3 space-y-3">
                   <li className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded border border-slate-300 bg-slate-100 flex items-center justify-center font-bold">1</div>
+                    <div className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-[#1e2330] text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold">1</div>
                     <span>You have not visited the question yet.</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-red-500 text-white flex items-center justify-center font-bold">2</div>
+                    <div className="w-8 h-8 rounded bg-[#d9534f] text-white flex items-center justify-center font-bold" style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%)" }}>2</div>
                     <span>You have not answered the question.</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-emerald-600 text-white flex items-center justify-center font-bold">3</div>
+                    <div className="w-8 h-8 rounded bg-[#5cb85c] dark:bg-emerald-600 text-white flex items-center justify-center font-bold" style={{ clipPath: "polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%)" }}>3</div>
                     <span>You have answered the question.</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">4</div>
+                    <div className="w-8 h-8 rounded-full bg-[#603598] text-white flex items-center justify-center font-bold">4</div>
                     <span>You have NOT answered the question, but have marked the question for review.</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold relative">
-                      5 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-600 rounded-full border border-white"></div>
+                    <div className="w-8 h-8 rounded-full bg-[#603598] text-white flex items-center justify-center font-bold relative">
+                      5 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#5cb85c] dark:bg-emerald-500 rounded-full border border-white dark:border-[#252b3b]"></div>
                     </div>
                     <span>The question(s) "Answered and Marked for Review" will be considered for evaluation.</span>
                   </li>
@@ -113,25 +117,25 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
           </section>
 
           <section>
-            <h2 className="text-lg font-bold underline mb-3">Navigating to a Question:</h2>
+            <h2 className="text-lg font-bold underline mb-3 text-slate-900 dark:text-slate-100">Navigating to a Question:</h2>
             <ol className="list-decimal pl-5 space-y-2" start={7}>
               <li>To answer a question, do the following:
                 <ol className="list-[lower-alpha] pl-5 mt-2 space-y-1">
                   <li>Click on the question number in the Question Palette at the right of your screen to go to that numbered question directly. Note that using this option does NOT save your answer to the current question.</li>
-                  <li>Click on <strong>Save & Next</strong> to save your answer for the current question and then go to the next question.</li>
-                  <li>Click on <strong>Mark for Review & Next</strong> to save your answer for the current question, mark it for review, and then go to the next question.</li>
+                  <li>Click on <strong className="text-slate-900 dark:text-slate-100">Save & Next</strong> to save your answer for the current question and then go to the next question.</li>
+                  <li>Click on <strong className="text-slate-900 dark:text-slate-100">Mark for Review & Next</strong> to save your answer for the current question, mark it for review, and then go to the next question.</li>
                 </ol>
               </li>
             </ol>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold underline mb-3">Answering a Question:</h2>
+            <h2 className="text-lg font-bold underline mb-3 text-slate-900 dark:text-slate-100">Answering a Question:</h2>
             <ol className="list-decimal pl-5 space-y-2" start={8}>
               <li>Procedure for answering a multiple choice type question:
                 <ol className="list-[lower-alpha] pl-5 mt-2 space-y-1">
                   <li>To select your answer, click on the button of one of the options.</li>
-                  <li>To deselect your chosen answer, click on the button of the chosen option again or click on the <strong>Clear Response</strong> button</li>
+                  <li>To deselect your chosen answer, click on the button of the chosen option again or click on the <strong className="text-slate-900 dark:text-slate-100">Clear Response</strong> button</li>
                   <li>To change your chosen answer, click on the button of another option</li>
                   <li>To save your answer, you MUST click on the Save & Next button.</li>
                   <li>To mark the question for review, click on the Mark for Review & Next button.</li>
@@ -142,7 +146,7 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
           </section>
 
           <section>
-            <h2 className="text-lg font-bold underline mb-3">Navigating through sections:</h2>
+            <h2 className="text-lg font-bold underline mb-3 text-slate-900 dark:text-slate-100">Navigating through sections:</h2>
             <ol className="list-decimal pl-5 space-y-2" start={10}>
               <li>Sections in this question paper are displayed on the top bar of the screen. Questions in a section can be viewed by click on the section name. The section you are currently viewing is highlighted.</li>
               <li>After click the Save & Next button on the last question for a section, you will automatically be taken to the first question of the next section.</li>
@@ -151,11 +155,7 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
             </ol>
           </section>
 
-          {/* <div className="py-4 border-b border-slate-200">
-            <p className="text-red-600">Please note all questions will appear in your default language. This language can be changed for a particular question later on.</p>
-          </div> */}
-
-          <div className="py-4 text-xs text-slate-500 italic bg-slate-50 p-4 rounded mt-4 border border-slate-200">
+          <div className="py-4 text-xs text-slate-500 dark:text-slate-400 italic bg-slate-50 dark:bg-[#1e2330] p-4 rounded-xl mt-4 border border-slate-200 dark:border-slate-700">
             <strong>Disclaimer:</strong> ExamSimula is an independent educational tool designed to help students practice in a simulated Computer-Based Test (CBT) environment. ExamSimula is not affiliated with, endorsed by, or associated with the National Testing Agency (NTA), the Ministry of Education, or any official examination board. The user interface is simulated solely for familiarization and educational purposes. All exam names and related trademarks are the property of their respective owners.
           </div>
 
@@ -163,11 +163,11 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input 
                 type="checkbox" 
-                className="mt-1 w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                className="mt-1 w-4 h-4 text-emerald-600 dark:accent-blue-500 rounded border-slate-300 dark:border-slate-600 focus:ring-emerald-500 dark:bg-[#1a1e29]"
                 checked={isChecked}
                 onChange={(e) => setIsChecked(e.target.checked)}
               />
-              <span className="text-sm font-semibold text-slate-700">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 I have read and understood the instructions. All computer hardware allotted to me are in proper working condition. I declare that I am not in possession of / not wearing / not carrying any prohibited gadget like mobile phone, bluetooth devices etc. /any prohibited material with me into the Examination Hall. I agree that in case of not adhering to the instructions, I shall be liable to be debarred from this Test and/or to disciplinary action, which may include ban from future Tests / Examinations
               </span>
             </label>
@@ -179,7 +179,7 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
               onClick={() => {
                 if (paperId) onProceed(Number(paperId));
               }}
-              className={`px-12 py-3 rounded text-white font-bold text-lg transition-colors ${isChecked ? 'bg-[#5CB85C] hover:bg-[#4cae4c] cursor-pointer' : 'bg-slate-300 cursor-not-allowed'}`}
+              className={`px-12 py-3 rounded-xl text-white font-bold text-lg transition-colors shadow-sm ${isChecked ? 'bg-[#5CB85C] hover:bg-[#4cae4c] dark:bg-emerald-600 dark:hover:bg-emerald-700 cursor-pointer' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'}`}
             >
               PROCEED
             </button>

@@ -24,7 +24,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const tokenFromUrl = urlParams.get('token');
     if (tokenFromUrl) {
       localStorage.setItem('auth_token', tokenFromUrl);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      urlParams.delete('token');
+      const remainingSearch = urlParams.toString();
+      const newUrl = window.location.pathname + (remainingSearch ? `?${remainingSearch}` : '');
+      window.history.replaceState({}, document.title, newUrl);
       return tokenFromUrl;
     }
     return localStorage.getItem('auth_token');

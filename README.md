@@ -85,3 +85,4 @@ The frontend expects several backend services to be running to function properly
 - **`ExamScreen.tsx`**: The core simulation. It tracks answers, timers, question palette statuses, and calculates local time-spent per question.
 - **`ReportScreen.tsx`**: Uses data from the `answer_sheet` and `/full` endpoints to dynamically piece together a student's performance compared against the official answer key, rendering step-by-step solutions for incorrect questions.
 - **`App.tsx`**: Acts as the central orchestrator, managing global session states and gracefully handling exam submission flows (including out-of-time autosaves).
+

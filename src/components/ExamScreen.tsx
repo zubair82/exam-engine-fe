@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, Cloud, Timer, ShieldAlert, Calculator, BookOpen, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, Bookmark, CheckCircle, HelpCircle, X, Trash2, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Calculator, AlertTriangle, X } from 'lucide-react';
 import { MathText } from './MathText';
-import { Question, Exam, ExamSession, QuestionStatus } from '../types';
+import { Exam, ExamSession } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 interface ExamScreenProps {
   exam: Exam;
@@ -218,7 +219,6 @@ export default function ExamScreen({
     updatedAnswers[activeQuestion.id] = optionIndex;
 
     const updatedStatuses = { ...session.statuses };
-    // If it was marked, keep it marked but answered. Otherwise mark it answered.
     const currentStatus = session.statuses[activeQuestion.id];
     if (currentStatus === 'marked' || currentStatus === 'answered_marked') {
       updatedStatuses[activeQuestion.id] = 'answered_marked';
@@ -293,7 +293,6 @@ export default function ExamScreen({
     const hasAnswer = session.answers[activeQuestion.id] !== undefined;
 
     if (hasAnswer) {
-      // It was answered, make sure status is 'answered' (re-saving clears marked state)
       updatedStatuses[activeQuestion.id] = 'answered';
     } else {
       updatedStatuses[activeQuestion.id] = 'not_answered';
@@ -327,7 +326,6 @@ export default function ExamScreen({
       setCalcResult('');
     } else if (val === '=') {
       try {
-        // Safe evaluation for basic math expression
         const cleanExpr = calcInput.replace(/[^-()\d/*+.]/g, '');
         const res = Function(`"use strict"; return (${cleanExpr})`)();
         setCalcResult(res.toString());
@@ -361,11 +359,9 @@ export default function ExamScreen({
 
   // Submits test and calculates marks
   const handleSubmit = () => {
-    // Calculate final score
     let score = 0;
     exam.questions.forEach((q) => {
       const selected = session.answers[q.id];
-      // JEE Advanced scoring: say +4 for correct, -1 for incorrect
       if (selected !== undefined) {
         if (selected === q.correctOption) {
           score += 4;
@@ -399,7 +395,7 @@ export default function ExamScreen({
   const { answeredCount, markedCount, answeredMarkedCount, notAnsweredCount, unvisitedCount } = getSessionStats();
 
   return (
-    <div className="bg-slate-50 fixed inset-0 flex flex-col overflow-hidden select-none font-sans text-slate-800">
+    <div className="bg-slate-50 dark:bg-[#1a1e29] fixed inset-0 flex flex-col overflow-hidden select-none font-sans text-slate-800 dark:text-slate-200 transition-colors duration-200">
 
       {/* Anti-Cheating Fullscreen Proctoring Warning Overlay */}
       <AnimatePresence>
@@ -416,7 +412,7 @@ export default function ExamScreen({
               You are taking a proctored assessment. Leaving the test interface, opening new tabs, or switching applications is strictly monitored. Continuing to exit full-screen will lead to automatic submission.
             </p>
             <button onClick={() => setShowCheatingWarning(false)}
-              className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold px-6 py-2.5 rounded-lg transition-all text-sm shadow-md"
+              className="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold px-6 py-2.5 rounded-lg transition-all text-sm shadow-md cursor-pointer"
             >
               Return to Exam
             </button>
@@ -442,7 +438,7 @@ export default function ExamScreen({
               The exam must be taken in full-screen mode to ensure a secure environment. Please return to full-screen to continue.
             </p>
             <button onClick={requestFullscreen}
-              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-lg transition-all text-sm shadow-md"
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-lg transition-all text-sm shadow-md cursor-pointer"
             >
               Return to Full Screen
             </button>
@@ -457,7 +453,7 @@ export default function ExamScreen({
             initial={{ opacity: 0, scale: 0.9, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 15 }}
-            className="fixed right-88 top-20 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-64 z-[40] text-white"
+            className="fixed right-88 top-20 bg-slate-900 dark:bg-[#252b3b] border border-slate-700 dark:border-slate-700/70 rounded-xl shadow-2xl p-4 w-64 z-[40] text-white"
           >
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
@@ -466,14 +462,14 @@ export default function ExamScreen({
               </span>
               <button
                 onClick={() => setShowCalculator(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Calc Display */}
-            <div className="bg-slate-950 rounded p-2 text-right font-mono text-sm h-14 flex flex-col justify-between overflow-hidden mb-3 border border-slate-800">
+            <div className="bg-slate-950 dark:bg-[#1a1e29] rounded p-2 text-right font-mono text-sm h-14 flex flex-col justify-between overflow-hidden mb-3 border border-slate-800 dark:border-slate-700">
               <span className="text-[10px] text-slate-500 overflow-x-auto whitespace-nowrap block">{calcInput || '0'}</span>
               <span className="text-blue-400 font-bold text-base block">{calcResult || ' '}</span>
             </div>
@@ -484,11 +480,11 @@ export default function ExamScreen({
                 <button
                   key={key}
                   onClick={() => handleCalcPress(key)}
-                  className={`py-2 rounded transition-colors text-center ${key === '='
+                  className={`py-2 rounded transition-colors text-center cursor-pointer ${key === '='
                     ? 'col-span-2 bg-blue-600 text-white hover:bg-blue-500'
                     : key === 'C'
                       ? 'bg-red-900/40 text-red-300 border border-red-900/30 hover:bg-red-900/60'
-                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                      : 'bg-slate-800 dark:bg-[#1e2330] text-slate-200 hover:bg-slate-700 dark:hover:bg-[#1a1e29]'
                     }`}
                 >
                   {key}
@@ -499,26 +495,39 @@ export default function ExamScreen({
         )}
       </AnimatePresence>
 
-      {/* Thin White Header Strip */}
-      <header className="w-full bg-white border-b border-slate-200 shrink-0 relative z-20 h-4 shadow-sm"></header>
+      {/* Top Header Strip */}
+      <header className="w-full bg-white dark:bg-[#222736] border-b border-slate-200 dark:border-slate-700/60 shrink-0 relative z-20 h-4 shadow-sm"></header>
 
       {/* Candidate Profile Strip */}
-      <div className="w-full bg-[#f0f4f7] border-b border-slate-200 flex px-4 md:px-8 py-2 md:py-2.5 items-center justify-center md:justify-start shrink-0 z-10 text-xs shadow-sm">
+      <div className="w-full bg-[#f0f4f7] dark:bg-[#222736] border-b border-slate-200 dark:border-slate-700/60 flex px-4 md:px-8 py-2 md:py-2.5 items-center justify-between shrink-0 z-10 text-xs shadow-sm transition-colors duration-200">
         <div className="flex items-center gap-6 w-full md:w-auto">
-          <div className="hidden md:flex w-20 h-20 bg-white border-2 border-slate-300 rounded shadow-sm items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-5xl text-slate-400">person</span>
+          <div className="hidden md:flex w-20 h-20 bg-white dark:bg-[#252b3b] border-2 border-slate-300 dark:border-slate-700 rounded shadow-sm items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-5xl text-slate-400 dark:text-slate-400">person</span>
           </div>
           <div className="flex flex-col leading-tight gap-1.5 w-full md:w-auto items-center md:items-start">
-            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Candidate Name :</span> <span className="font-bold text-orange-500 text-sm">{user?.name || "Student"}</span></div>
-            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Exam Name :</span> <span className="font-bold text-orange-500 text-sm">{exam.name}</span></div>
-            <div className="hidden md:flex"><span className="w-32 text-slate-600 font-semibold text-sm">Subject Name :</span> <span className="font-bold text-orange-500 text-sm">{activeSubject}</span></div>
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 dark:text-slate-300 font-semibold text-sm">Candidate Name :</span> <span className="font-bold text-orange-500 dark:text-amber-400 text-sm">{user?.name || "Student"}</span></div>
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 dark:text-slate-300 font-semibold text-sm">Exam Name :</span> <span className="font-bold text-orange-500 dark:text-amber-400 text-sm">{exam.name}</span></div>
+            <div className="hidden md:flex"><span className="w-32 text-slate-600 dark:text-slate-300 font-semibold text-sm">Subject Name :</span> <span className="font-bold text-orange-500 dark:text-amber-400 text-sm">{activeSubject}</span></div>
             <div className="flex items-center md:mt-1 justify-center md:justify-start w-full">
-              <span className="md:w-32 text-slate-600 font-semibold text-sm mr-2 md:mr-0">Remaining Time :</span>
-              <span className="bg-[#2a84c8] text-white font-mono font-bold px-3 py-0.5 rounded-full text-sm shadow-sm">
+              <span className="md:w-32 text-slate-600 dark:text-slate-300 font-semibold text-sm mr-2 md:mr-0">Remaining Time :</span>
+              <span className="bg-[#2a84c8] dark:bg-blue-600 text-white font-mono font-bold px-3 py-0.5 rounded-full text-sm shadow-sm">
                 {formatTime(session.secondsRemaining)}
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Action icons / Theme toggle on right of strip */}
+        <div className="hidden md:flex items-center gap-3">
+          <button
+            onClick={() => setShowCalculator(!showCalculator)}
+            className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#252b3b] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#1e2330] flex items-center gap-1.5 text-xs font-semibold cursor-pointer shadow-sm transition-colors"
+            title="Open Calculator"
+          >
+            <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Calculator</span>
+          </button>
+          <ThemeToggle size="sm" />
         </div>
       </div>
 
@@ -526,23 +535,24 @@ export default function ExamScreen({
       <main className="flex-1 flex overflow-hidden min-h-0 relative z-10">
 
         {/* Left Pane (Question Stem + Answer Selection, takes 75%) */}
-        <section className="flex-1 flex flex-col bg-white overflow-hidden min-h-0 min-w-0 relative">
-
-
+        <section className="flex-1 flex flex-col bg-white dark:bg-[#1a1e29] overflow-hidden min-h-0 min-w-0 relative transition-colors duration-200">
 
           {/* Question Metadata Bar */}
-          <div className="flex justify-between items-center px-4 sm:px-6 py-2.5 bg-white border-b border-slate-200 shrink-0 font-semibold">
+          <div className="flex justify-between items-center px-4 sm:px-6 py-2.5 bg-white dark:bg-[#222736] border-b border-slate-200 dark:border-slate-700/60 shrink-0 font-semibold transition-colors duration-200">
             <div className="flex items-center gap-2 sm:gap-4">
-              <span className="text-sm font-bold text-slate-900">Question {activeQuestion.id}</span>
-              <span className="text-xs sm:text-sm font-bold text-blue-900 bg-blue-50 px-2 sm:px-3 py-1 rounded border border-blue-200">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Question {activeQuestion.id}</span>
+              <span className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-2 sm:px-3 py-1 rounded border border-blue-200 dark:border-blue-500/30">
                 {activeQuestion.type}
               </span>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
+              <div className="md:hidden">
+                <ThemeToggle size="sm" />
+              </div>
               <button 
                 onClick={() => setShowMobileQuestionsPane(true)}
-                className="lg:hidden flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md font-bold text-xs shadow-md transition-all active:scale-95"
+                className="lg:hidden flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white px-3 py-1.5 rounded-md font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>format_list_bulleted</span>
                 <span>Questions</span>
@@ -551,13 +561,13 @@ export default function ExamScreen({
           </div>
 
           {/* Active Question Content */}
-          <div ref={containerRef} className="flex-1 flex flex-col min-h-0 relative bg-white">
+          <div ref={containerRef} className="flex-1 flex flex-col min-h-0 relative bg-white dark:bg-[#1a1e29] transition-colors duration-200">
             {/* Question Stem Text */}
             <div 
               style={{ height: `${questionHeight}%` }}
               className="overflow-y-auto p-4 sm:p-6"
             >
-              <div className="text-slate-900 leading-relaxed font-normal text-base w-full max-w-full overflow-x-auto">
+              <div className="text-slate-900 dark:text-slate-200 leading-relaxed font-normal text-base w-full max-w-full overflow-x-auto">
                 <div className="whitespace-pre-wrap break-words"><MathText text={activeQuestion.text} diagramsText={activeQuestion.diagrams} /></div>
               </div>
             </div>
@@ -565,20 +575,20 @@ export default function ExamScreen({
             {/* Resizer Divider */}
             <div 
               onPointerDown={handlePointerDown}
-              className="h-3 sm:h-2 bg-slate-200/50 hover:bg-slate-300 active:bg-blue-300 cursor-row-resize shrink-0 flex justify-center items-center group transition-colors touch-none"
+              className="h-3 sm:h-2 bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600 active:bg-blue-300 dark:active:bg-blue-700 cursor-row-resize shrink-0 flex justify-center items-center group transition-colors touch-none"
             >
-              <div className="w-12 h-1 bg-slate-400/70 rounded-full group-hover:bg-blue-600 transition-colors"></div>
+              <div className="w-12 h-1 bg-slate-400/70 dark:bg-slate-500 rounded-full group-hover:bg-blue-600 dark:group-hover:bg-blue-400 transition-colors"></div>
             </div>
 
             {/* Answer Options or Numerical Input */}
             <div 
               style={{ height: `${100 - questionHeight}%` }}
-              className="overflow-y-auto p-4 sm:p-6 bg-slate-50/50"
+              className="overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-[#1e2330]/50"
             >
               <div className="flex flex-col gap-3 max-w-3xl">
                 {activeQuestion.type?.toLowerCase().includes('numerical') ? (
-                  <div className="p-4 border border-slate-200 rounded-lg bg-white">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                  <div className="p-4 border border-slate-200 dark:border-slate-700/70 rounded-2xl bg-white dark:bg-[#252b3b]">
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">
                       Enter your numerical answer (integer only):
                     </label>
                     <textarea
@@ -586,13 +596,12 @@ export default function ExamScreen({
                       value={session.answers[activeQuestion.id] ?? ''}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9-]/g, '');
-                        // Only call handleSelectOption if it's a valid integer or minus sign
                         if (val === '' || val === '-' || !isNaN(parseInt(val, 10))) {
                           handleSelectOption(val);
                         }
                       }}
                       placeholder="Type your answer here..."
-                      className="w-full p-3 border border-slate-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-base text-slate-800 resize-none"
+                      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#1a1e29] border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-400 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none font-mono"
                     />
                   </div>
                 ) : (
@@ -602,20 +611,20 @@ export default function ExamScreen({
                       <button
                         key={index}
                         onClick={() => handleSelectOption(index)}
-                        className={`flex items-center p-4 border rounded-lg cursor-pointer text-left transition-all group ${isSelected
-                          ? 'border-blue-900 bg-blue-50'
-                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                        className={`flex items-center p-4 border rounded-xl cursor-pointer text-left transition-all group ${isSelected
+                          ? 'border-blue-900 dark:border-blue-500 bg-blue-50 dark:bg-blue-950/70'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e2330] hover:bg-slate-50 dark:hover:border-blue-500'
                           }`}
                       >
                         {/* Custom Styled Radio circular bullet */}
                         <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all shrink-0 ${isSelected
-                          ? 'border-blue-900 bg-blue-500'
-                          : 'border-slate-300 group-hover:border-blue-900'
+                          ? 'border-blue-900 dark:border-blue-500 bg-blue-500 dark:bg-blue-500'
+                          : 'border-slate-300 dark:border-slate-600 group-hover:border-blue-900 dark:group-hover:border-blue-400 bg-white dark:bg-[#1a1e29]'
                           }`}>
                           {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
                         </div>
 
-                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 font-bold' : 'text-slate-700'}`}>
+                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
                           <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
                         </span>
                       </button>
@@ -627,32 +636,32 @@ export default function ExamScreen({
           </div>
 
           {/* Action Footer */}
-          <div className="px-6 py-3 border-t border-slate-300 bg-white shrink-0">
+          <div className="px-6 py-3 border-t border-slate-300 dark:border-slate-700/60 bg-white dark:bg-[#222736] shrink-0 transition-colors duration-200">
             <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
               <button
                 onClick={handleSaveAndNext}
-                className="px-5 py-2.5 bg-[#5cb85c] hover:bg-[#4cae4c] text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
+                className="px-5 py-2.5 bg-[#5cb85c] hover:bg-[#4cae4c] dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
               >
                 Save & Next
               </button>
 
               <button
                 onClick={handleClearResponse}
-                className="px-5 py-2.5 bg-white border border-[#ccc] hover:bg-slate-50 text-slate-800 text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
+                className="px-5 py-2.5 bg-white dark:bg-[#252b3b] border border-[#ccc] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-[#1e2330] text-slate-800 dark:text-slate-200 text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
               >
                 Clear
               </button>
 
               <button
                 onClick={handleSaveAndMarkForReview}
-                className="px-5 py-2.5 bg-[#f0ad4e] hover:bg-[#eea236] text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
+                className="px-5 py-2.5 bg-[#f0ad4e] hover:bg-[#eea236] dark:bg-amber-600 dark:hover:bg-amber-700 text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
               >
                 Save & Mark For Review
               </button>
 
               <button
                 onClick={handleMarkForReviewAndNext}
-                className="px-5 py-2.5 bg-[#337ab7] hover:bg-[#286090] text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
+                className="px-5 py-2.5 bg-[#337ab7] hover:bg-[#286090] dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
               >
                 Mark For Review & Next
               </button>
@@ -660,19 +669,19 @@ export default function ExamScreen({
           </div>
 
           {/* Secondary Bottom Bar */}
-          <div className="px-6 py-2.5 border-t border-slate-300 bg-[#f0f4f7] shrink-0 flex justify-between items-center shadow-inner">
+          <div className="px-6 py-2.5 border-t border-slate-300 dark:border-slate-700/60 bg-[#f0f4f7] dark:bg-[#1e2330] shrink-0 flex justify-between items-center shadow-inner transition-colors duration-200">
             <div className="flex gap-2">
               <button
                 onClick={handlePrevious}
                 disabled={currentQuestionIndex === 0}
-                className="px-5 py-1.5 border border-[#ccc] bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm rounded-sm flex items-center gap-1"
+                className="px-5 py-1.5 border border-[#ccc] dark:border-slate-700 bg-white dark:bg-[#252b3b] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1e29] disabled:opacity-50 transition-all shadow-sm rounded-sm flex items-center gap-1 cursor-pointer"
               >
                 &lt;&lt; BACK
               </button>
               <button
                 onClick={handleNext}
                 disabled={currentQuestionIndex === exam.questions.length - 1}
-                className="px-5 py-1.5 border border-[#ccc] bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 disabled:opacity-50 transition-all shadow-sm rounded-sm flex items-center gap-1"
+                className="px-5 py-1.5 border border-[#ccc] dark:border-slate-700 bg-white dark:bg-[#252b3b] text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1e29] disabled:opacity-50 transition-all shadow-sm rounded-sm flex items-center gap-1 cursor-pointer"
               >
                 NEXT &gt;&gt;
               </button>
@@ -680,7 +689,7 @@ export default function ExamScreen({
 
             <button
               onClick={() => setShowSubmitModal(true)}
-              className="px-8 py-1.5 bg-[#5cb85c] hover:bg-[#4cae4c] text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm"
+              className="px-8 py-1.5 bg-[#5cb85c] hover:bg-[#4cae4c] dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs font-bold uppercase transition-all shadow-sm rounded-sm cursor-pointer"
             >
               Submit
             </button>
@@ -694,19 +703,19 @@ export default function ExamScreen({
             onClick={() => setShowMobileQuestionsPane(false)}
           />
         )}
-        <aside className={`fixed right-0 top-0 bottom-0 z-40 lg:static lg:z-30 w-[300px] sm:w-[340px] lg:w-[340px] flex flex-col bg-white border-l border-slate-300 shrink-0 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] overflow-hidden transition-transform duration-300 ease-in-out ${showMobileQuestionsPane ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+        <aside className={`fixed right-0 top-0 bottom-0 z-40 lg:static lg:z-30 w-[300px] sm:w-[340px] lg:w-[340px] flex flex-col bg-white dark:bg-[#222736] border-l border-slate-300 dark:border-slate-700/60 shrink-0 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] overflow-hidden transition-transform duration-300 ease-in-out ${showMobileQuestionsPane ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
           {/* Mobile Drawer Header */}
-          <div className="lg:hidden flex justify-between items-center p-4 bg-slate-50 border-b border-slate-200 shrink-0">
-            <h3 className="font-bold text-slate-800">Question Palette</h3>
-            <button onClick={() => setShowMobileQuestionsPane(false)} className="text-slate-500 hover:text-slate-800">
+          <div className="lg:hidden flex justify-between items-center p-4 bg-slate-50 dark:bg-[#222736] border-b border-slate-200 dark:border-slate-700/60 shrink-0">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100">Question Palette</h3>
+            <button onClick={() => setShowMobileQuestionsPane(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 cursor-pointer">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* NTA Color State Legends */}
-          <div className="p-4 border-b border-slate-300 bg-white grid grid-cols-2 gap-x-2 gap-y-4 text-xs leading-tight text-slate-700 shrink-0">
+          <div className="p-4 border-b border-slate-300 dark:border-slate-700/60 bg-white dark:bg-[#222736] grid grid-cols-2 gap-x-2 gap-y-4 text-xs leading-tight text-slate-700 dark:text-slate-300 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-7 bg-[#f0f0f0] border border-slate-300 rounded flex items-center justify-center font-bold text-slate-700 shadow-sm">{unvisitedCount}</div>
+              <div className="w-8 h-7 bg-[#f0f0f0] dark:bg-[#252b3b] border border-slate-300 dark:border-slate-700 rounded flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 shadow-sm">{unvisitedCount}</div>
               <span className="flex-1">Not Visited</span>
             </div>
 
@@ -730,18 +739,18 @@ export default function ExamScreen({
                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#5cb85c] rounded-full border border-white"></div>
                 {answeredMarkedCount}
               </div>
-              <span className="text-slate-600 mt-1">Answered & Marked for Review (will be considered for evaluation)</span>
+              <span className="text-slate-600 dark:text-slate-400 mt-1">Answered & Marked for Review (will be considered for evaluation)</span>
             </div>
           </div>
 
-          <div className="flex bg-slate-50 border-b border-slate-200 shrink-0">
+          <div className="flex bg-slate-50 dark:bg-[#1e2330] border-b border-slate-200 dark:border-slate-700/60 shrink-0">
             {(['Mathematics', 'Physics', 'Chemistry'] as const).map((sub) => (
               <button
                 key={sub}
                 onClick={() => handleSwitchSubject(sub)}
-                className={`flex-1 py-3 font-bold text-xs tracking-wide transition-all uppercase text-center ${activeSubject.toLowerCase() === sub.toLowerCase()
-                  ? 'text-blue-900 border-b-2 border-blue-900 bg-blue-50/50'
-                  : 'text-slate-600 hover:bg-slate-100/50'
+                className={`flex-1 py-3 font-bold text-xs tracking-wide transition-all uppercase text-center cursor-pointer ${activeSubject.toLowerCase() === sub.toLowerCase()
+                  ? 'text-blue-900 dark:text-blue-400 border-b-2 border-blue-900 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/40'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/50 dark:hover:bg-[#252b3b]'
                   }`}
               >
                 {sub}
@@ -750,15 +759,15 @@ export default function ExamScreen({
           </div>
 
           {/* Active Palette Header and Stats */}
-          <div className="p-4 bg-blue-50 text-blue-900 text-xs font-bold flex justify-between items-center border-b border-slate-200">
+          <div className="p-4 bg-blue-50 dark:bg-[#1e2330] text-blue-900 dark:text-blue-300 text-xs font-bold flex justify-between items-center border-b border-slate-200 dark:border-slate-700/60">
             <span className="tracking-wide uppercase">{activeSubject}</span>
-            <span className="bg-white text-blue-900 border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold">
+            <span className="bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 border border-blue-100 dark:border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">
               {exam.questions.filter((q) => q.subject.toLowerCase() === activeSubject.toLowerCase()).length} Questions
             </span>
           </div>
 
           {/* Grid Question Palette Buttons */}
-          <div className="flex-1 p-4 bg-blue-50/30 overflow-y-auto">
+          <div className="flex-1 p-4 bg-blue-50/30 dark:bg-[#1a1e29] overflow-y-auto">
             <div className="grid grid-cols-5 gap-3">
               {exam.questions.map((q, idx) => {
                 if (q.subject.toLowerCase() !== activeSubject.toLowerCase()) return null;
@@ -766,7 +775,7 @@ export default function ExamScreen({
                 const status = session.statuses[q.id];
                 const isActive = currentQuestionIndex === idx;
 
-                let btnClass = 'bg-[#f0f0f0] border border-slate-300 text-slate-700 rounded'; // unvisited default
+                let btnClass = 'bg-[#f0f0f0] dark:bg-[#252b3b] border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded';
                 let style = {};
 
                 if (status === 'not_answered') {
@@ -791,7 +800,7 @@ export default function ExamScreen({
                       }
                     }}
                     style={style}
-                    className={`w-11 h-10 text-sm font-bold flex items-center justify-center relative hover:opacity-85 transition-all cursor-pointer shadow-sm ${btnClass} ${isActive ? 'ring-2 ring-blue-500 ring-offset-2 z-10' : ''
+                    className={`w-11 h-10 text-sm font-bold flex items-center justify-center relative hover:opacity-85 transition-all cursor-pointer shadow-sm ${btnClass} ${isActive ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#1a1e29] z-10' : ''
                       }`}
                   >
                     {idx + 1}
@@ -806,8 +815,8 @@ export default function ExamScreen({
         </aside>
       </main>
 
-      {/* Dark Blue NTA Footer */}
-      <footer className="w-full bg-[#0f3057] text-white text-xs font-medium py-3 text-center shrink-0 z-20 shadow-inner">
+      {/* Footer */}
+      <footer className="w-full bg-[#0f3057] dark:bg-[#151821] text-white dark:text-slate-400 text-xs font-medium py-3 text-center shrink-0 z-20 shadow-inner transition-colors duration-200">
         © All Rights Reserved - ExamSimula
       </footer>
 
@@ -818,47 +827,47 @@ export default function ExamScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/60 z-[999] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-950/60 z-[999] flex items-center justify-center p-4 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, y: 15 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 15 }}
-              className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full border border-slate-200"
+              className="bg-white dark:bg-[#252b3b] rounded-2xl shadow-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-700/70 text-slate-900 dark:text-slate-100"
             >
-              <div className="flex items-center gap-3 text-blue-900 mb-4">
+              <div className="flex items-center gap-3 text-blue-900 dark:text-blue-400 mb-4">
                 <AlertTriangle className="w-6 h-6 text-amber-500" />
                 <h3 className="text-lg font-bold">Confirm Exam Submission</h3>
               </div>
 
-              <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-4">
                 Are you sure you want to submit your paper? You will not be able to review or modify your answers once submitted. Here is your current progress overview:
               </p>
 
               {/* Stats overview */}
-              <div className="grid grid-cols-2 gap-3 mb-6 text-xs bg-slate-50 border border-slate-150 p-4 rounded-lg">
-                <div className="flex justify-between items-center text-slate-600">
+              <div className="grid grid-cols-2 gap-3 mb-6 text-xs bg-slate-50 dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 p-4 rounded-xl">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span>Answered:</span>
-                  <strong className="text-slate-800 font-bold">{answeredCount + answeredMarkedCount}</strong>
+                  <strong className="text-slate-800 dark:text-slate-100 font-bold">{answeredCount + answeredMarkedCount}</strong>
                 </div>
-                <div className="flex justify-between items-center text-slate-600">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span>Marked for Review:</span>
-                  <strong className="text-slate-800 font-bold">{markedCount}</strong>
+                  <strong className="text-slate-800 dark:text-slate-100 font-bold">{markedCount}</strong>
                 </div>
-                <div className="flex justify-between items-center text-slate-600">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span>Not Answered:</span>
-                  <strong className="text-slate-800 font-bold">{notAnsweredCount}</strong>
+                  <strong className="text-slate-800 dark:text-slate-100 font-bold">{notAnsweredCount}</strong>
                 </div>
-                <div className="flex justify-between items-center text-slate-600">
+                <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                   <span>Unvisited:</span>
-                  <strong className="text-slate-800 font-bold">{unvisitedCount}</strong>
+                  <strong className="text-slate-800 dark:text-slate-100 font-bold">{unvisitedCount}</strong>
                 </div>
               </div>
 
               <div className="flex gap-4">
                 <button
                   onClick={() => setShowSubmitModal(false)}
-                  className="flex-1 bg-white border border-slate-300 text-slate-600 font-semibold py-2 rounded-lg text-xs hover:bg-slate-50 transition-colors"
+                  className="flex-1 bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold py-2.5 rounded-xl text-xs hover:bg-slate-50 dark:hover:bg-[#1a1e29] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -867,7 +876,7 @@ export default function ExamScreen({
                     setShowSubmitModal(false);
                     handleSubmit();
                   }}
-                  className="flex-1 bg-blue-900 text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-800 transition-colors shadow-sm"
+                  className="flex-1 bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-sm cursor-pointer"
                 >
                   Yes, Submit Paper
                 </button>

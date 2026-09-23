@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -91,6 +93,20 @@
   --text-body-sm--line-height: 20px;
 }
 
+/* Native controls dark mode integration */
+html.dark,
+.dark {
+  color-scheme: dark;
+}
+
+/* Radio buttons & checkboxes */
+.dark input[type="radio"],
+.dark input[type="checkbox"] {
+  color-scheme: dark;
+  accent-color: #3b82f6;
+  background-color: #1a1e29;
+}
+
 @layer base {
   .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -103,4 +119,97 @@
     overflow-y: hidden;
     max-width: 100%;
   }
+
+  .dark .katex {
+    color: #e2e8f0;
+  }
+}
+
+/* Legal Prose Content Styling for Markdown Rendering */
+.legal-prose blockquote {
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background-color: rgba(239, 246, 255, 0.75);
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  margin-bottom: 1.5rem;
+}
+.dark .legal-prose blockquote {
+  background-color: rgba(23, 37, 84, 0.4);
+  border-color: rgba(30, 58, 138, 0.5);
+  color: #93c5fd;
+}
+.legal-prose h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.dark .legal-prose h2 {
+  color: #f1f5f9;
+}
+.legal-prose h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+.dark .legal-prose h3 {
+  color: #e2e8f0;
+}
+.legal-prose p {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.7;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.dark .legal-prose p {
+  color: #cbd5e1;
+}
+.legal-prose ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: #475569;
+}
+.dark .legal-prose ul {
+  color: #cbd5e1;
+}
+.legal-prose li {
+  margin-bottom: 0.5rem;
+  line-height: 1.625;
+}
+.legal-prose hr {
+  border: 0;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 1.75rem;
+  margin-bottom: 1.75rem;
+}
+.dark .legal-prose hr {
+  border-top-color: #1e293b;
+}
+.legal-prose a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.dark .legal-prose a {
+  color: #60a5fa;
+}
+.legal-prose strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+.dark .legal-prose strong {
+  color: #f8fafc;
 }

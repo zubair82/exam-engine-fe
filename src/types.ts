@@ -73,3 +73,14 @@ export interface AISuggestion {
     score: number;
   }[];
 }
+
+export interface ExamTypeConfig {
+  exam_code: string;
+  name: string;
+  subjects: string[];
+  duration_seconds?: number;
+  total_questions?: number;
+  total_marks?: number;
+  is_active?: boolean;
+}
+

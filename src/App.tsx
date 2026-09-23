@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import LandingScreen from './components/LandingScreen';
 import DashboardScreen from './components/DashboardScreen';
@@ -8,6 +8,11 @@ import ExamScreen from './components/ExamScreen';
 import ReportScreen from './components/ReportScreen';
 import LoginScreen from './components/LoginScreen';
 import InstructionsScreen from './components/InstructionsScreen';
+import TermsPage from './pages/legal/TermsPage';
+import PrivacyPage from './pages/legal/PrivacyPage';
+import RefundPolicyPage from './pages/legal/RefundPolicyPage';
+import ContactPage from './pages/legal/ContactPage';
+import LegalHubPage from './pages/legal/LegalHubPage';
 import { Exam, ExamSession, AISuggestion, Subject, Question } from './types';
 import { useAuth } from './contexts/AuthContext';
 
@@ -15,7 +20,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#1a1e29]"><div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div></div>;
   }
 
   if (!user) {
@@ -27,6 +32,45 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
   }
 
   return <>{children}</>;
+};
+
+const AcademyRoute = () => {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+  const params = useParams<{ slug?: string }>();
+
+  const searchParams = new URLSearchParams(location.search);
+  if (params.slug && !searchParams.has('teacher')) {
+    searchParams.set('teacher', params.slug);
+  }
+  const searchStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  const targetUrl = `/question-papers${searchStr}`;
+
+  useEffect(() => {
+    const rawRef = searchParams.get('ref');
+    if (rawRef) {
+      localStorage.setItem('referral_code', rawRef);
+      sessionStorage.setItem('referral_code', rawRef);
+    }
+    sessionStorage.setItem('referral_post_login', targetUrl);
+    localStorage.setItem('referral_post_login', targetUrl);
+  }, [targetUrl]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#1a1e29]">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    sessionStorage.removeItem('referral_post_login');
+    localStorage.removeItem('referral_post_login');
+    return <Navigate to={targetUrl} replace />;
+  }
+
+  return <Navigate to={`/login${searchStr}`} replace />;
 };
 
 export default function App() {
@@ -650,10 +694,10 @@ export default function App() {
         },
         question_level_data: questionLevelData
       };
-      
+
       const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exam/attempts/${attemptId}/analytics`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         },
@@ -800,11 +844,24 @@ export default function App() {
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    // Check if we should redirect from landing/login pages to dashboard based on role
+    // Check if we should redirect from landing/login/academy pages to destination based on role & referral
     if (!isLoading && user) {
       const normalizedPath = location.pathname.replace(/\/$/, '');
-      if (normalizedPath === '/home' || normalizedPath === '/login' || normalizedPath === '') {
+      if (normalizedPath === '/home' || normalizedPath === '/login' || normalizedPath === '' || normalizedPath.startsWith('/academy')) {
+        const referralRedirect = sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login');
         const postLoginAction = localStorage.getItem('postLoginAction');
+
+        // Clear legacy keys if present
+        localStorage.removeItem('es_active_ref');
+        localStorage.removeItem('postLoginRedirect');
+
+        if (referralRedirect) {
+          sessionStorage.removeItem('referral_post_login');
+          localStorage.removeItem('referral_post_login');
+          navigate(referralRedirect, { replace: true });
+          return;
+        }
+
         if (postLoginAction === 'startFirstMockTest') {
           localStorage.removeItem('postLoginAction');
 
@@ -826,6 +883,7 @@ export default function App() {
             });
 
         } else {
+          // Normal student login goes to dashboard
           navigate('/dashboard', { replace: true });
         }
       }
@@ -833,15 +891,26 @@ export default function App() {
   }, [user, isLoading, location.pathname, navigate]);
 
   return (
-    <div className="w-full h-full min-h-screen bg-slate-50 overflow-x-hidden">
+    <div className="w-full h-full min-h-screen bg-slate-50 dark:bg-[#1a1e29] text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <AnimatePresence mode="wait">
         {/* @ts-ignore: key is required by AnimatePresence but not in RoutesProps in this version */}
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={
-            isLoading ? <div className="min-h-screen flex items-center justify-center">Loading...</div> :
-              user ? <Navigate to="/dashboard" replace /> :
+            isLoading ? <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#1a1e29] text-slate-900 dark:text-slate-100">Loading...</div> :
+              user ? (
+                sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login') ? (
+                  <Navigate to={(sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login'))!} replace />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              ) : (
                 <Navigate to="/home" replace />
+              )
           } />
+
+          <Route path="/academy/:slug" element={<AcademyRoute />} />
+          <Route path="/academy" element={<AcademyRoute />} />
+
           <Route path="/home" element={
             <motion.div
               initial={{ opacity: 0, x: -10 }}
@@ -888,6 +957,18 @@ export default function App() {
               <LoginScreen />
             </motion.div>
           } />
+
+          {/* Dedicated Razorpay & Student Policy Routes (Publicly Accessible) */}
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/terms-of-use" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/cancellation-policy" element={<RefundPolicyPage />} />
+          <Route path="/refunds" element={<RefundPolicyPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/contact-us" element={<ContactPage />} />
+          <Route path="/legal" element={<LegalHubPage />} />
 
           <Route path="/dashboard" element={
             <ProtectedRoute allowedRoles={['student', 'teacher']}>

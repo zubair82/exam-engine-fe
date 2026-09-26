@@ -83,6 +83,19 @@ The frontend expects several backend services to be running to function properly
 ## Key Components
 
 - **`ExamScreen.tsx`**: The core simulation. It tracks answers, timers, question palette statuses, and calculates local time-spent per question.
+- **`ExamsListScreen.tsx`**: Displays available exams, dynamic category tabs, pricing badges, and triggers the "Buy Paper" Razorpay checkout modal.
+- **`useRazorpayCheckout.ts`**: Reusable React hook managing dynamic script injection (`checkout.js`), order generation from backend, Razorpay Modal initialization, and cryptographic payment verification.
 - **`ReportScreen.tsx`**: Uses data from the `answer_sheet` and `/full` endpoints to dynamically piece together a student's performance compared against the official answer key, rendering step-by-step solutions for incorrect questions.
 - **`App.tsx`**: Acts as the central orchestrator, managing global session states and gracefully handling exam submission flows (including out-of-time autosaves).
+
+## Environment Variables
+
+Configure the following variables in `.env`:
+
+| Variable | Description | Example |
+|---|---|---|
+| `VITE_EXAM_API_URL` | Go backend Exam Engine API URL | `http://localhost:8080` |
+| `VITE_AUTH_API_URL` | Python FastAPI Auth Service URL | `http://localhost:5001` |
+| `VITE_RAZORPAY_KEY_ID` | Razorpay Key ID for client-side checkout modal | `rzp_test_TfqCUTSu39gbr9` |
+
 

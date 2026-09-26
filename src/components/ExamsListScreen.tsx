@@ -6,6 +6,7 @@ import ExamSimulaLogo from './Logo';
 import { getExamMetadata } from '../data/examMetadata';
 import { ExamTypeConfig } from '../types';
 import { fetchExamTypes, matchesExamCategory, normalizeExamCategory, DEFAULT_EXAM_TYPES } from '../services/examTypesService';
+import { useRazorpayCheckout } from '../hooks/useRazorpayCheckout';
 
 interface ExamsListScreenProps {
   onStartExam: (paperId: number) => void;
@@ -28,6 +29,9 @@ export interface ExamItem {
   teacher_id?: string;
   teacher_slug?: string;
   referral_code?: string;
+  price_paise?: number;
+  is_free?: boolean;
+  is_purchased?: boolean;
 }
 
 export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsListScreenProps) {
@@ -49,6 +53,12 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
 
   // Resolved teacher details from referral code
   const [referredTeacher, setReferredTeacher] = useState<{ teacher_id: string; display_name: string } | null>(null);
+
+  const { buyPaper, isCheckingOut, activePaperId } = useRazorpayCheckout({
+    onSuccess: (_, paperId) => {
+      setExams(prev => prev.map(ex => ex.paper_id === paperId ? { ...ex, is_purchased: true } : ex));
+    }
+  });
 
   useEffect(() => {
     if (!refCode) return;
@@ -122,12 +132,15 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
           const title = displayName && !rawTitle.toLowerCase().includes(`by ${displayName.toLowerCase()}`)
             ? `${rawTitle} by ${displayName}`
             : rawTitle;
+          const isFree = e.is_free !== undefined ? Boolean(e.is_free) : (!e.price_paise && !e.price);
+          const isPurchased = Boolean(e.is_purchased || e.purchased || e.has_access);
+          const pricePaise = e.price_paise ?? (e.price ? e.price * 100 : 0);
 
           return {
-            id: String(e.exam_code || e.paper_id),
+            id: String(e.paper_id),
             title,
             raw_title: rawTitle,
-            paper_id: e.paper_id,
+            paper_id: Number(e.paper_id),
             total_questions: e.total_questions || 75,
             duration_seconds: e.duration_seconds || 10800,
             status: e.status || 'Unattempted',
@@ -136,11 +149,22 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             subject: e.subject || '',
             display_name: displayName,
             bio: e.bio || '',
-            teacher_id: e.teacher_id || ''
+            teacher_id: e.teacher_id || '',
+            price_paise: pricePaise,
+            is_free: isFree,
+            is_purchased: isPurchased
           };
         }) : [];
 
-        setExams(mappedExams);
+        // Deduplicate exams by paper_id to prevent any duplicate card rendering
+        const seenIds = new Set<number>();
+        const uniqueExams = mappedExams.filter(exam => {
+          if (seenIds.has(exam.paper_id)) return false;
+          seenIds.add(exam.paper_id);
+          return true;
+        });
+
+        setExams(uniqueExams);
 
         // Merge server-driven types with any newly discovered exam codes from the database papers
         const finalTypes = [...typesData];
@@ -634,7 +658,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                   const marks = totalQuestions * 4;
 
                   return (
-                    <div key={exam.id} className="bg-white dark:bg-[#252b3b] border border-slate-200 dark:border-slate-700/70 rounded-2xl p-6 hover:shadow-md transition-all flex flex-col justify-between group">
+                    <div key={`exam-${exam.paper_id}`} className="bg-white dark:bg-[#252b3b] border border-slate-200 dark:border-slate-700/70 rounded-2xl p-6 hover:shadow-md transition-all flex flex-col justify-between group">
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-500/30">
@@ -671,30 +695,61 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                       </div>
 
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/60">
-                        <span className="text-xs font-semibold text-slate-400 dark:text-slate-400">
-                          {exam.status.toLowerCase() === 'attempted' ? 'Completed' : exam.status.toLowerCase() === 'in progress' ? 'Ongoing' : 'Available'}
-                        </span>
-                        <button
-                          className={`px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer ${exam.status.toLowerCase() === 'attempted'
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700'
+                        <div>
+                          <span className="text-xs font-semibold text-slate-400 dark:text-slate-400">
+                            {exam.status.toLowerCase() === 'attempted'
+                              ? 'Completed'
                               : exam.status.toLowerCase() === 'in progress'
-                                ? 'bg-blue-900 hover:bg-blue-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700'
-                            }`}
-                          onClick={() => {
-                            if (exam.status.toLowerCase() === 'attempted') {
+                                ? 'Ongoing'
+                                : exam.is_purchased || exam.is_free
+                                  ? 'Available'
+                                  : `₹${((exam.price_paise || 4900) / 100).toFixed(0)}`}
+                          </span>
+                        </div>
+                        {exam.status.toLowerCase() === 'attempted' ? (
+                          <button
+                            className="px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+                            onClick={() => {
                               try {
                                 onViewReport(exam.paper_id);
                               } catch (e: any) {
                                 alert("Error in onViewReport: " + e.message);
                               }
-                            } else {
-                              onStartExam(exam.paper_id);
-                            }
-                          }}
-                        >
-                          {exam.status.toLowerCase() === 'attempted' ? 'View Report' : exam.status.toLowerCase() === 'in progress' ? 'Resume' : 'Start Now'}
-                        </button>
+                            }}
+                          >
+                            View Report
+                          </button>
+                        ) : exam.status.toLowerCase() === 'in progress' ? (
+                          <button
+                            className="px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer bg-blue-900 hover:bg-blue-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+                            onClick={() => onStartExam(exam.paper_id)}
+                          >
+                            Resume
+                          </button>
+                        ) : exam.is_purchased || exam.is_free ? (
+                          <button
+                            className="px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+                            onClick={() => onStartExam(exam.paper_id)}
+                          >
+                            Start Now
+                          </button>
+                        ) : (
+                          <button
+                            disabled={isCheckingOut && activePaperId === exam.paper_id}
+                            className="px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
+                            onClick={() => {
+                              buyPaper({
+                                paperId: exam.paper_id,
+                                paperTitle: exam.title,
+                                pricePaise: exam.price_paise || 4900,
+                                referralCode: refCode || exam.referral_code
+                              });
+                            }}
+                          >
+                            <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
+                            <span>{isCheckingOut && activePaperId === exam.paper_id ? 'Opening...' : `Buy Paper (₹${((exam.price_paise || 4900) / 100).toFixed(0)})`}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

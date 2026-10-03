@@ -249,11 +249,13 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             ''
           ).toString().trim();
 
+          const paperIdNum = Number(e.paper_id ?? e.id ?? e.paperId) || 0;
+
           return {
-            id: String(e.paper_id),
+            id: String(paperIdNum),
             title,
             raw_title: rawTitle,
-            paper_id: Number(e.paper_id),
+            paper_id: paperIdNum,
             total_questions: e.total_questions || 75,
             duration_seconds: e.duration_seconds || 10800,
             status: e.status || 'Unattempted',

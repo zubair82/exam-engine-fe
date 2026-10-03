@@ -5,24 +5,55 @@ import ThemeToggle from './ThemeToggle';
 
 interface InstructionsScreenProps {
   onProceed: (paperId: number) => void;
+  durationSeconds?: number;
 }
 
-export default function InstructionsScreen({ onProceed }: InstructionsScreenProps) {
+export default function InstructionsScreen({ onProceed, durationSeconds }: InstructionsScreenProps) {
   const { paperId } = useParams<{ paperId: string }>();
   const navigate = useNavigate();
   const [isChecked, setIsChecked] = useState(false);
   const [showFullscreenPopup, setShowFullscreenPopup] = useState(() => !document.fullscreenElement);
-  const [durationMins, setDurationMins] = useState(180);
+  const [durationMins, setDurationMins] = useState(() => durationSeconds ? Math.round(durationSeconds / 60) : 180);
+  const [examTitle, setExamTitle] = useState<string>('');
 
   React.useEffect(() => {
+    if (!paperId) return;
+
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-    }).then(res => res.json()).then(data => {
-      const exam = data.find((e: any) => e.exam_code === paperId || e.paper_id === paperId);
-      if (exam && exam.duration_seconds) {
-        setDurationMins(Math.round(exam.duration_seconds / 60));
-      }
-    }).catch(console.error);
+      headers
+    })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          const exam = data.find((e: any) => 
+            String(e.paper_id) === String(paperId) || 
+            String(e.id) === String(paperId) ||
+            (e.exam_code && String(e.exam_code).toLowerCase() === String(paperId).toLowerCase())
+          );
+          if (exam) {
+            if (exam.title) setExamTitle(exam.title);
+            let dur = exam.duration_seconds ?? exam.durationSeconds;
+            if (!dur && exam.metadata) {
+              try {
+                const meta = typeof exam.metadata === 'string' ? JSON.parse(exam.metadata) : exam.metadata;
+                dur = meta.duration_seconds ?? meta.durationSeconds ?? meta.duration;
+              } catch {
+                // ignore
+              }
+            }
+            if (dur && Number(dur) > 0) {
+              setDurationMins(Math.round(Number(dur) / 60));
+            }
+          }
+        }
+      })
+      .catch(console.error);
   }, [paperId]);
 
   return (
@@ -74,7 +105,12 @@ export default function InstructionsScreen({ onProceed }: InstructionsScreenProp
 
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-8 border-b border-slate-200 dark:border-slate-700/60 pb-4">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Please read the instructions carefully</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Please read the instructions carefully</h1>
+            {examTitle && (
+              <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mt-1">{examTitle}</p>
+            )}
+          </div>
           <ThemeToggle size="md" />
         </div>
         

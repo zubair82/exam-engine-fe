@@ -24,6 +24,8 @@ export interface ExamItem {
   exam_code?: string;
   category?: string;
   subject?: string;
+  metadata?: Record<string, any>;
+  paper_type?: string;
   display_name?: string;
   bio?: string;
   teacher_id?: string;
@@ -32,6 +34,84 @@ export interface ExamItem {
   price_paise?: number;
   is_free?: boolean;
   is_purchased?: boolean;
+}
+
+/**
+ * Categorize exam paper into one of the three tabs:
+ * 'Full Mocks' | 'Subject Tests' | 'Previous Year Papers'
+ * Matches metadata.paper_type case-insensitively, with fallback heuristics for title/code.
+ */
+export function getExamPaperType(exam: ExamItem): 'Full Mocks' | 'Subject Tests' | 'Previous Year Papers' {
+  const rawType = (exam.paper_type || '').toLowerCase().trim();
+
+  if (rawType) {
+    if (
+      rawType === 'full mock' ||
+      rawType === 'full mocks' ||
+      rawType === 'full_mock' ||
+      rawType === 'full-mock' ||
+      rawType.includes('full mock')
+    ) {
+      return 'Full Mocks';
+    }
+    if (
+      rawType === 'subject test' ||
+      rawType === 'subject tests' ||
+      rawType === 'subject_test' ||
+      rawType === 'subject-test' ||
+      rawType.includes('subject test') ||
+      rawType === 'subject'
+    ) {
+      return 'Subject Tests';
+    }
+    if (
+      rawType === 'previous year paper' ||
+      rawType === 'previous year papers' ||
+      rawType === 'previous tear paper' ||
+      rawType === 'previous tear papers' ||
+      rawType === 'previous year' ||
+      rawType === 'previous tear' ||
+      rawType === 'previous_year_paper' ||
+      rawType === 'previous-year-paper' ||
+      rawType.includes('previous year') ||
+      rawType.includes('previous tear') ||
+      rawType === 'pyq' ||
+      rawType.includes('pyq')
+    ) {
+      return 'Previous Year Papers';
+    }
+  }
+
+  // Fallback heuristics when paper_type metadata is not provided
+  const title = (exam.title || '').toLowerCase();
+  const rawTitle = (exam.raw_title || '').toLowerCase();
+  const code = (exam.exam_code || '').toLowerCase();
+  const combined = `${title} ${rawTitle} ${code}`;
+
+  if (
+    combined.includes('pyq') ||
+    combined.includes('previous year') ||
+    combined.includes('previous-year') ||
+    combined.includes('prev year') ||
+    combined.includes('previous') ||
+    combined.includes('previous tear') ||
+    /\b20\d\d\b/.test(combined)
+  ) {
+    return 'Previous Year Papers';
+  }
+
+  if (
+    combined.includes('subject test') ||
+    combined.includes('chapter test') ||
+    combined.includes('chapter') ||
+    combined.includes('part test') ||
+    combined.includes('sectional') ||
+    combined.includes('topic test')
+  ) {
+    return 'Subject Tests';
+  }
+
+  return 'Full Mocks';
 }
 
 export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsListScreenProps) {
@@ -136,6 +216,39 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
           const isPurchased = Boolean(e.is_purchased || e.purchased || e.has_access);
           const pricePaise = e.price_paise ?? (e.price ? e.price * 100 : 0);
 
+          // Extract metadata and paper_type
+          let metadataObj: Record<string, any> = {};
+          if (e.metadata) {
+            if (typeof e.metadata === 'string') {
+              try {
+                metadataObj = JSON.parse(e.metadata);
+              } catch {
+                metadataObj = {};
+              }
+            } else if (typeof e.metadata === 'object') {
+              metadataObj = e.metadata;
+            }
+          } else if (e.paper_metadata) {
+            if (typeof e.paper_metadata === 'string') {
+              try {
+                metadataObj = JSON.parse(e.paper_metadata);
+              } catch {
+                metadataObj = {};
+              }
+            } else if (typeof e.paper_metadata === 'object') {
+              metadataObj = e.paper_metadata;
+            }
+          }
+
+          const paperType = (
+            metadataObj.paper_type ||
+            metadataObj.paperType ||
+            metadataObj.type ||
+            e.paper_type ||
+            e.paperType ||
+            ''
+          ).toString().trim();
+
           return {
             id: String(e.paper_id),
             title,
@@ -147,6 +260,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             exam_code: e.exam_code || '',
             category: e.category || '',
             subject: e.subject || '',
+            metadata: metadataObj,
+            paper_type: paperType,
             display_name: displayName,
             bio: e.bio || '',
             teacher_id: e.teacher_id || '',
@@ -278,16 +393,16 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
         }
       }
 
-      // 3. Tab filter (Mock Type)
-      if (activeTab === 'Previous Year Papers') {
-        const title = exam.title.toLowerCase();
-        const code = (exam.exam_code || '').toLowerCase();
-        const isPYQ = title.includes('pyq') || title.includes('previous') || title.includes('202') || code.includes('pyq');
-        if (!isPYQ) return false;
-      } else if (activeTab === 'Subject Tests') {
-        const title = exam.title.toLowerCase();
-        const isSubject = title.includes('subject') || title.includes('chapter') || title.includes('part');
-        if (!isSubject) return false;
+      // 3. Tab filter (Mock Type: Full Mocks / Subject Tests / Previous Year Papers)
+      const paperCategory = getExamPaperType(exam);
+      if (activeTab === 'Full Mocks' && paperCategory !== 'Full Mocks') {
+        return false;
+      }
+      if (activeTab === 'Subject Tests' && paperCategory !== 'Subject Tests') {
+        return false;
+      }
+      if (activeTab === 'Previous Year Papers' && paperCategory !== 'Previous Year Papers') {
+        return false;
       }
 
       // 4. Subject filter (if subjects selected)
@@ -455,23 +570,34 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
         {/* Tab Navigation (Full Mocks / Subject Tests / PYQs) */}
         <div className="mb-8 border-b border-slate-200 dark:border-slate-700/60">
           <div className="flex gap-8 overflow-x-auto pb-px hide-scrollbar">
-            {(['Full Mocks', 'Subject Tests', 'Previous Year Papers'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`pb-4 border-b-2 text-base md:text-lg flex items-center gap-2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${activeTab === tab
-                    ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
-                  }`}
-              >
-                <span>{tab}</span>
-                {tab === 'Full Mocks' && (
-                  <span className="text-xs bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300 px-2.5 py-0.5 rounded-full font-bold">
-                    {filteredExams.length}
-                  </span>
-                )}
-              </button>
-            ))}
+            {(['Full Mocks', 'Subject Tests', 'Previous Year Papers'] as const).map((tab) => {
+              const count = exams.filter(e => {
+                if (hasReferral && activeView === 'teacher' && !isExamByReferredTeacher(e)) return false;
+                if (!matchesExamCategory(e, activeCategory, examTypes)) return false;
+                return getExamPaperType(e) === tab;
+              }).length;
+
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`pb-4 border-b-2 text-base md:text-lg flex items-center gap-2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${activeTab === tab
+                      ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
+                    }`}
+                >
+                  <span>{tab}</span>
+                  {count > 0 && (
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${activeTab === tab
+                        ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300'
+                        : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                      }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 

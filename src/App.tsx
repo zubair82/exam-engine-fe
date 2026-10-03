@@ -1015,13 +1015,9 @@ export default function App() {
                 transition={{ duration: 0.3 }}
                 className="w-full h-full"
               >
-                {activeExam && session && !session.isCompleted ? (
-                  <Navigate to="/exam" replace />
-                ) : (
-                  <InstructionsScreen
-                    onProceed={(paperId) => handleStartExam(Number(paperId))}
-                  />
-                )}
+                <InstructionsScreen
+                  onProceed={(paperId) => handleStartExam(Number(paperId))}
+                />
               </motion.div>
             </ProtectedRoute>
           } />

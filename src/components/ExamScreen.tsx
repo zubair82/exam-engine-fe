@@ -711,8 +711,8 @@ export default function ExamScreen({
                           </div>
                         )}
 
-                        <div className={`text-sm leading-relaxed flex-1 min-w-0 max-w-full overflow-x-auto break-words ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
-                          <MathText text={optionStr} diagramsText={activeQuestion.diagrams} className="break-words" />
+                        <div className={`text-sm leading-relaxed flex-1 min-w-0 max-w-full overflow-x-auto ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
+                          <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
                         </div>
                       </button>
                     );

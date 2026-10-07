@@ -120,28 +120,10 @@ html.dark,
     max-width: 100%;
   }
 
-  .katex {
-    white-space: normal !important;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-  }
-
-  .katex .base {
-    white-space: normal !important;
-    display: inline;
-    overflow-wrap: anywhere;
-  }
-
-  .katex-html {
-    white-space: normal !important;
-    overflow-wrap: anywhere;
-  }
-
   .katex-math {
-    display: inline;
+    display: inline-block;
     max-width: 100%;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    vertical-align: middle;
   }
 
   .dark .katex {

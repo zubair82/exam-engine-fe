@@ -16,6 +16,7 @@ import LegalHubPage from './pages/legal/LegalHubPage';
 import { Exam, ExamSession, AISuggestion, Subject, Question } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { extractExamDurationSeconds } from './utils/durationUtils';
+import { evaluateQuestionAnswer } from './utils/questionEvaluation';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
   const { user, isLoading } = useAuth();
@@ -503,21 +504,12 @@ export default function App() {
       let calculatedScore = 0;
       dummyQuestions.forEach((q) => {
         const selected = parsedAnswers[q.id];
-        if (selected !== undefined) {
-          if (q.type === 'numerical') {
-            const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
-            const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-            const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-            const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-
-            if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
-              calculatedScore += 4;
-            } else {
-              calculatedScore -= 1;
-            }
+        const evalRes = evaluateQuestionAnswer(q.type, selected, q.correctOption, q.correctAnswerText);
+        if (evalRes.isAttempted) {
+          if (evalRes.isCorrect) {
+            calculatedScore += 4;
           } else {
-            if (selected === q.correctOption) calculatedScore += 4;
-            else calculatedScore -= 1;
+            calculatedScore -= 1;
           }
         }
       });
@@ -674,17 +666,10 @@ export default function App() {
       questions.forEach(q => {
         const chosen = completedSession.answers[q.id];
         let isCorrect = false;
+        const evalRes = evaluateQuestionAnswer(q.type, chosen, q.correctOption, q.correctAnswerText);
 
-        if (chosen !== undefined) {
-          if (q.type === 'numerical') {
-            const extractedSelected = String(chosen).match(/-?\d+(\.\d+)?/);
-            const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-            const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-            const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-            isCorrect = (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect);
-          } else {
-            isCorrect = (chosen === q.correctOption);
-          }
+        if (evalRes.isAttempted) {
+          isCorrect = evalRes.isCorrect;
           if (isCorrect) correctCount++;
           else incorrectCount++;
 
@@ -699,7 +684,7 @@ export default function App() {
           subject: q.subject,
           topic: q.topic || 'General',
           difficulty: 'Medium',
-          student_answer: chosen !== undefined ? String(chosen) : "",
+          student_answer: chosen !== undefined ? (Array.isArray(chosen) ? chosen.join(',') : String(chosen)) : "",
           correct_answer: q.correctAnswerText || String(q.correctOption),
           is_correct: isCorrect,
           time_spent_seconds: completedSession.timeSpent[q.id] || 0,
@@ -808,21 +793,12 @@ export default function App() {
           let score = 0;
           finalQuestions.forEach((q) => {
             const selected = session.answers[q.id];
-            if (selected !== undefined) {
-              if (q.type === 'numerical') {
-                const extractedSelected = String(selected).match(/-?\d+(\.\d+)?/);
-                const extractedCorrect = String(q.correctAnswerText).match(/-?\d+(\.\d+)?/);
-                const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-                const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-
-                if (!isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect) {
-                  score += 4;
-                } else {
-                  score -= 1; // Assuming JEE Advanced rules: -1 for incorrect numerical too? Or 0?
-                }
+            const evalRes = evaluateQuestionAnswer(q.type, selected, q.correctOption, q.correctAnswerText);
+            if (evalRes.isAttempted) {
+              if (evalRes.isCorrect) {
+                score += 4;
               } else {
-                if (selected === q.correctOption) score += 4;
-                else score -= 1;
+                score -= 1;
               }
             }
           });

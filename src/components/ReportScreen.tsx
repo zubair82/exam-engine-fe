@@ -3,6 +3,12 @@ import { Award, ArrowLeft, Clock, Sparkles, AlertCircle, Check, XCircle } from '
 import { MathText } from './MathText';
 import { Exam, ExamSession, AISuggestion } from '../types';
 import ThemeToggle from './ThemeToggle';
+import { 
+  isMultipleSelectQuestion, 
+  parseCorrectOptionIndices, 
+  parseStudentOptionIndices, 
+  evaluateQuestionAnswer 
+} from '../utils/questionEvaluation';
 
 interface ReportScreenProps {
   exam: Exam;
@@ -38,7 +44,7 @@ export default function ReportScreen({
   };
 
   // Local state to store fetched full questions
-  const [fullQuestions, setFullQuestions] = useState<Record<string | number, { correctOption: number, solution: string, diagrams?: string, answerText?: string, text?: string, options?: string[], estimatedTimeSeconds?: number, subject?: string }>>({});
+  const [fullQuestions, setFullQuestions] = useState<Record<string | number, { correctOption: number, solution: string, diagrams?: string, answerText?: string, text?: string, options?: string[], estimatedTimeSeconds?: number, subject?: string, type?: string }>>({});
 
   const selectedQuestion = exam.questions[selectedSolutionIndex];
   const currentFullQ = fullQuestions[selectedQuestion?.id];
@@ -60,12 +66,9 @@ export default function ReportScreen({
         });
         if (res.ok) {
           const fullQ = await res.json();
-          let correctOpt = -1;
           const ansStr = fullQ.answer ? String(fullQ.answer).trim().toUpperCase() : "";
-          if (ansStr.startsWith('A.') || ansStr.startsWith('A ') || ansStr === 'A' || ansStr === '1') correctOpt = 0;
-          else if (ansStr.startsWith('B.') || ansStr.startsWith('B ') || ansStr === 'B' || ansStr === '2') correctOpt = 1;
-          else if (ansStr.startsWith('C.') || ansStr.startsWith('C ') || ansStr === 'C' || ansStr === '3') correctOpt = 2;
-          else if (ansStr.startsWith('D.') || ansStr.startsWith('D ') || ansStr === 'D' || ansStr === '4') correctOpt = 3;
+          const correctOpts = parseCorrectOptionIndices(ansStr);
+          const correctOpt = correctOpts.length > 0 ? correctOpts[0] : -1;
 
           let parsedOptions: string[] = [];
           if (fullQ.options) {
@@ -90,7 +93,8 @@ export default function ReportScreen({
               text: fullQ.question_latex || '',
               options: parsedOptions,
               estimatedTimeSeconds: fullQ.estimated_time_seconds ?? fullQ.estimatedTimeSeconds,
-              subject: fullQ.subject
+              subject: fullQ.subject,
+              type: fullQ.question_type || fullQ.type || selectedQuestion.type
             }
           }));
         }
@@ -122,25 +126,10 @@ export default function ReportScreen({
 
   exam.questions.forEach((q) => {
     const chosen = session.answers[q.id];
+    const qType = fullQuestions[q.id]?.type ?? q.type;
+    const ansText = fullQuestions[q.id]?.answerText ?? q.correctAnswerText;
     const correctOpt = fullQuestions[q.id]?.correctOption ?? q.correctOption;
-
-    let isCorrect = false;
-    if (chosen !== undefined) {
-      if (q.type === 'numerical') {
-        const ansText = fullQuestions[q.id]?.answerText ?? q.correctAnswerText ?? "";
-        const extractedSelected = String(chosen).match(/-?\d+(\.\d+)?/);
-        const extractedCorrect = String(ansText).match(/-?\d+(\.\d+)?/);
-        const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-        const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-        isCorrect = !isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect;
-      } else {
-        let parsedChosen = chosen;
-        if (typeof chosen === 'string' && !isNaN(parseInt(chosen))) {
-          parsedChosen = parseInt(chosen);
-        }
-        isCorrect = parsedChosen === correctOpt;
-      }
-    }
+    const { isAttempted, isCorrect } = evaluateQuestionAnswer(qType, chosen, correctOpt, ansText);
 
     const normSubj = normalizeSubject(q.subject);
     const timeSpent = session.timeSpent[q.id] || 0;
@@ -148,7 +137,7 @@ export default function ReportScreen({
     else if (normSubj === 'Chemistry') { chemistryTotal += 4; chemistryTime += timeSpent; }
     else if (normSubj === 'Mathematics') { mathematicsTotal += 4; mathematicsTime += timeSpent; }
 
-    if (chosen === undefined) {
+    if (!isAttempted) {
       unattemptedCount++;
     } else if (isCorrect) {
       correctCount++;
@@ -601,28 +590,15 @@ export default function ReportScreen({
               <div className="grid grid-cols-5 gap-2">
                 {exam.questions.map((q, idx) => {
                   const studentAnswer = session.answers[q.id];
-                  let isCorrect = false;
+                  const qType = fullQuestions[q.id]?.type ?? q.type;
+                  const ansText = fullQuestions[q.id]?.answerText ?? q.correctAnswerText;
+                  const correctOpt = fullQuestions[q.id]?.correctOption ?? q.correctOption;
+                  const { isAttempted, isCorrect } = evaluateQuestionAnswer(qType, studentAnswer, correctOpt, ansText);
 
-                  if (q.type === 'numerical') {
-                    const ansText = fullQuestions[q.id]?.answerText ?? q.correctAnswerText ?? "";
-                    const extractedSelected = String(studentAnswer).match(/-?\d+(\.\d+)?/);
-                    const extractedCorrect = String(ansText).match(/-?\d+(\.\d+)?/);
-                    const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-                    const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-                    isCorrect = !isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect;
-                  } else {
-                    const correctOpt = fullQuestions[q.id]?.correctOption ?? q.correctOption;
-                    let parsedStudentAns = studentAnswer;
-                    if (typeof studentAnswer === 'string' && !isNaN(parseInt(studentAnswer))) {
-                      parsedStudentAns = parseInt(studentAnswer);
-                    }
-                    isCorrect = parsedStudentAns === correctOpt;
-                  }
-                  const isUnattempted = studentAnswer === undefined;
                   const isActive = selectedSolutionIndex === idx;
 
                   let colorClass = 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1e2330]';
-                  if (!isUnattempted) {
+                  if (isAttempted) {
                     colorClass = isCorrect
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
                       : 'bg-red-50 dark:bg-rose-950/60 text-red-800 dark:text-rose-300 border-red-300 dark:border-rose-800';
@@ -639,7 +615,7 @@ export default function ReportScreen({
                         }`}
                     >
                       {idx + 1}
-                      {!isUnattempted && (
+                      {isAttempted && (
                         <div className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${isCorrect ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-red-500 dark:bg-rose-400'}`}></div>
                       )}
                     </button>
@@ -649,7 +625,7 @@ export default function ReportScreen({
             </div>
 
             {/* Right Question Solution Viewer (Colspan 8) */}
-            <div className="lg:col-span-8 p-2 sm:p-4 flex flex-col justify-start overflow-y-auto max-h-[520px] gap-6 text-slate-800 dark:text-slate-200">
+            <div className="lg:col-span-8 p-2 sm:p-4 flex flex-col justify-start overflow-y-auto max-h-[520px] gap-6 text-slate-800 dark:text-slate-200 min-w-0">
 
               {/* Mobile Question Palette Button */}
               <button 
@@ -661,23 +637,25 @@ export default function ReportScreen({
               </button>
 
               {/* Question identity */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0 w-full">
 
                 <div className="flex justify-between items-center text-xs font-bold pb-2 border-b border-slate-150 dark:border-slate-700/60">
                   <div className="flex items-center gap-2">
                     <span className="text-slate-800 dark:text-slate-100">Question {selectedQuestion.id} • {actualSubject}</span>
                     <span className="text-slate-400 dark:text-slate-400 bg-slate-100 dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[10px]">
-                      {selectedQuestion.type}
+                      {currentFullQ?.type ?? selectedQuestion.type}
                     </span>
                   </div>
                 </div>
 
                 {/* Question body text */}
-                <div className="text-sm font-medium leading-relaxed break-words text-slate-900 dark:text-slate-100"><MathText text={currentFullQ?.text ?? selectedQuestion.text} diagramsText={actualDiagrams} /></div>
+                <div className="text-sm font-medium leading-relaxed break-words text-slate-900 dark:text-slate-100 min-w-0 max-w-full overflow-x-auto">
+                  <MathText text={currentFullQ?.text ?? selectedQuestion.text} diagramsText={actualDiagrams} />
+                </div>
 
                 {/* Question options */}
-                {selectedQuestion.type === 'numerical' ? (
-                  <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-[#1e2330] text-slate-800 dark:text-slate-200 text-sm font-semibold flex flex-col gap-3">
+                {selectedQuestion.type === 'numerical' || (currentFullQ?.type && currentFullQ.type.toLowerCase().includes('numerical')) ? (
+                  <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-[#1e2330] text-slate-800 dark:text-slate-200 text-sm font-semibold flex flex-col gap-3 min-w-0 max-w-full overflow-hidden">
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-slate-500 dark:text-slate-400 mr-2">Correct Answer:</span>
@@ -706,42 +684,50 @@ export default function ReportScreen({
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 text-xs min-w-0 w-full">
                     {(currentFullQ?.options && currentFullQ.options.length > 0 ? currentFullQ.options : selectedQuestion.options).map((opt, idx) => {
                       const studentAnswer = session.answers[selectedQuestion.id];
-                      const isCorrectOption = idx === actualCorrectOption;
+                      const correctIndices = parseCorrectOptionIndices(currentFullQ?.answerText ?? selectedQuestion.correctAnswerText ?? actualCorrectOption);
+                      const studentChosenIndices = parseStudentOptionIndices(studentAnswer);
 
-                      let parsedStudentAns = studentAnswer;
-                      if (typeof studentAnswer === 'string' && !isNaN(parseInt(studentAnswer))) {
-                        parsedStudentAns = parseInt(studentAnswer);
-                      }
-                      const isChosenOption = idx === parsedStudentAns;
+                      const isCorrectOption = correctIndices.includes(idx);
+                      const isChosenOption = studentChosenIndices.includes(idx);
 
                       let optClass = 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e2330] text-slate-700 dark:text-slate-200';
-                      if (isCorrectOption) {
-                        optClass = 'border-emerald-500 dark:border-emerald-800 bg-emerald-50/20 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-semibold';
+                      if (isCorrectOption && isChosenOption) {
+                        optClass = 'border-emerald-500 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 font-semibold ring-1 ring-emerald-500/30';
+                      } else if (isCorrectOption) {
+                        optClass = 'border-emerald-500 dark:border-emerald-600 bg-emerald-50/20 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-300 font-semibold';
                       } else if (isChosenOption) {
-                        optClass = 'border-red-500 dark:border-rose-800 bg-red-50/20 dark:bg-rose-950/60 text-red-900 dark:text-rose-300';
+                        optClass = 'border-red-500 dark:border-rose-800 bg-red-50/20 dark:bg-rose-950/60 text-red-900 dark:text-rose-300 font-semibold';
                       }
 
                       return (
                         <div
                           key={idx}
-                          className={`p-3 border rounded-xl flex items-center justify-between ${optClass}`}
+                          className={`p-3 border rounded-xl flex items-center justify-between gap-3 min-w-0 max-w-full overflow-hidden ${optClass}`}
                         >
-                          <span className="flex-1"><MathText text={opt} diagramsText={actualDiagrams} /></span>
-                          {isCorrectOption && (
-                            <span className="text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-0.5">
-                              <Check className="w-3 h-3" />
-                              Correct Answer
-                            </span>
-                          )}
-                          {isChosenOption && !isCorrectOption && (
-                            <span className="text-red-700 dark:text-rose-400 bg-red-100 dark:bg-rose-950/80 border border-red-200 dark:border-rose-800 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-0.5">
-                              <XCircle className="w-3 h-3" />
-                              Your Selection
-                            </span>
-                          )}
+                          <div className="flex-1 min-w-0 overflow-x-auto">
+                            <MathText text={opt} diagramsText={actualDiagrams} />
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                            {isChosenOption && (
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-0.5 ${
+                                isCorrectOption 
+                                  ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800'
+                                  : 'text-red-700 dark:text-rose-400 bg-red-100 dark:bg-rose-950/80 border border-red-200 dark:border-rose-800'
+                              }`}>
+                                {isCorrectOption ? <Check className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                Your Selection
+                              </span>
+                            )}
+                            {isCorrectOption && (
+                              <span className="text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-0.5">
+                                <Check className="w-3 h-3" />
+                                Correct Answer
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -749,12 +735,14 @@ export default function ReportScreen({
                 )}
 
                 {/* AI Solution Explanation */}
-                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl p-4">
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl p-4 min-w-0 max-w-full overflow-hidden">
                   <div className="flex items-center gap-2 mb-3">
                     <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <span className="text-sm font-bold text-blue-900 dark:text-blue-300">Step-by-step Solution</span>
                   </div>
-                  <div className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed font-medium whitespace-pre-wrap"><MathText text={actualSolution} diagramsText={actualDiagrams} /></div>
+                  <div className="text-xs text-blue-800 dark:text-blue-200 leading-relaxed font-medium whitespace-pre-wrap min-w-0 max-w-full overflow-x-auto">
+                    <MathText text={actualSolution} diagramsText={actualDiagrams} />
+                  </div>
                 </div>
 
                 {/* Score outcome & time indicator banner (bottom) */}

@@ -657,9 +657,9 @@ export default function ExamScreen({
               style={{ height: `${100 - questionHeight}%` }}
               className="overflow-y-auto p-4 sm:p-6 bg-slate-50/50 dark:bg-[#1e2330]/50"
             >
-              <div className="flex flex-col gap-3 max-w-3xl">
+              <div className="flex flex-col gap-3 w-full max-w-full">
                 {activeQuestion.type?.toLowerCase().includes('numerical') ? (
-                  <div className="p-4 border border-slate-200 dark:border-slate-700/70 rounded-2xl bg-white dark:bg-[#252b3b]">
+                  <div className="p-4 border border-slate-200 dark:border-slate-700/70 rounded-2xl bg-white dark:bg-[#252b3b] w-full max-w-full">
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">
                       Enter your numerical answer (integer only):
                     </label>
@@ -684,7 +684,7 @@ export default function ExamScreen({
                       <button
                         key={index}
                         onClick={() => handleSelectOption(index)}
-                        className={`flex items-start p-4 border rounded-xl cursor-pointer text-left transition-all group ${isSelected
+                        className={`flex items-start p-4 border rounded-xl cursor-pointer text-left transition-all group w-full min-w-0 max-w-full overflow-hidden ${isSelected
                           ? 'border-blue-900 dark:border-blue-500 bg-blue-50 dark:bg-blue-950/70 shadow-sm'
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e2330] hover:bg-slate-50 dark:hover:border-blue-500'
                           }`}
@@ -711,9 +711,9 @@ export default function ExamScreen({
                           </div>
                         )}
 
-                        <span className={`text-sm leading-relaxed flex-1 ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
-                          <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
-                        </span>
+                        <div className={`text-sm leading-relaxed flex-1 min-w-0 max-w-full overflow-x-auto break-words ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
+                          <MathText text={optionStr} diagramsText={activeQuestion.diagrams} className="break-words" />
+                        </div>
                       </button>
                     );
                   })

@@ -256,7 +256,7 @@ export const renderPreviewHtml = (text: any, diagramsText?: any) => {
             }
           });
           const rendered = renderedLines.join(' ');
-          html += `<span class="katex-math inline-block leading-normal">${rendered}</span>`;
+          html += `<span class="katex-math inline leading-normal break-words">${rendered}</span>`;
         }
       } else {
         html += renderDiagram(mathParts[i]);

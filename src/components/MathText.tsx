@@ -13,6 +13,6 @@ export const MathText = ({ text, diagramsText, className = '' }: MathTextProps &
   const html = renderPreviewHtml(text, diagramsText);
   
   return (
-    <span className={`inline leading-relaxed ${className}`} dangerouslySetInnerHTML={{ __html: html }} />
+    <span className={`inline leading-relaxed break-words ${className}`} dangerouslySetInnerHTML={{ __html: html }} />
   );
 };

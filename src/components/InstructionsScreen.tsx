@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import ThemeToggle from './ThemeToggle';
+import { extractExamDurationSeconds } from '../utils/durationUtils';
 
 interface InstructionsScreenProps {
   onProceed: (paperId: number) => void;
@@ -38,23 +39,13 @@ export default function InstructionsScreen({ onProceed, durationSeconds }: Instr
           );
           if (exam) {
             if (exam.title) setExamTitle(exam.title);
-            let dur = exam.duration_seconds ?? exam.durationSeconds;
-            if (!dur && exam.metadata) {
-              try {
-                const meta = typeof exam.metadata === 'string' ? JSON.parse(exam.metadata) : exam.metadata;
-                dur = meta.duration_seconds ?? meta.durationSeconds ?? meta.duration;
-              } catch {
-                // ignore
-              }
-            }
-            if (dur && Number(dur) > 0) {
-              setDurationMins(Math.round(Number(dur) / 60));
-            }
+            const durSecs = extractExamDurationSeconds(exam, durationSeconds || 10800);
+            setDurationMins(Math.round(durSecs / 60));
           }
         }
       })
       .catch(console.error);
-  }, [paperId]);
+  }, [paperId, durationSeconds]);
 
   return (
     <div className="bg-white dark:bg-[#1a1e29] min-h-screen p-4 sm:p-8 font-sans text-slate-800 dark:text-slate-200 transition-colors duration-200">
@@ -119,7 +110,7 @@ export default function InstructionsScreen({ onProceed, durationSeconds }: Instr
             <h2 className="text-lg font-bold underline mb-3 text-slate-900 dark:text-slate-100">General Instructions:</h2>
             <ol className="list-decimal pl-5 space-y-2">
               <li>Total duration of the examination is {durationMins} min.</li>
-              <li>The clock will be set at the server. The countdown timer in the top right corner of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You will not be required to end or submit your examination.</li>
+              <li>The clock will be set at the server. The countdown timer in the top of screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself. You will not be required to end or submit your examination.</li>
               <li>The Questions Palette displayed on the right side of screen will show the status of each question using one of the following symbols:
                 <ul className="list-none pl-5 mt-3 space-y-3">
                   <li className="flex items-center gap-3">

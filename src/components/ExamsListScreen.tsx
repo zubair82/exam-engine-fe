@@ -7,6 +7,7 @@ import { getExamMetadata } from '../data/examMetadata';
 import { ExamTypeConfig } from '../types';
 import { fetchExamTypes, matchesExamCategory, normalizeExamCategory, DEFAULT_EXAM_TYPES } from '../services/examTypesService';
 import { useRazorpayCheckout } from '../hooks/useRazorpayCheckout';
+import { extractExamDurationSeconds, formatDurationFriendly } from '../utils/durationUtils';
 
 interface ExamsListScreenProps {
   onStartExam: (paperId: number) => void;
@@ -257,7 +258,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             raw_title: rawTitle,
             paper_id: paperIdNum,
             total_questions: e.total_questions || 75,
-            duration_seconds: e.duration_seconds || 10800,
+            duration_seconds: extractExamDurationSeconds(e, 10800),
             status: e.status || 'Unattempted',
             exam_code: e.exam_code || '',
             category: e.category || '',
@@ -811,11 +812,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                 {paginatedExams.map((exam) => {
                   const meta = getExamMetadata(exam.title, exam.exam_code);
                   const totalQuestions = exam.total_questions || currentExamType.total_questions || parseInt(meta.questions) || 75;
-                  const durationMinutes = exam.duration_seconds
-                    ? Math.round(exam.duration_seconds / 60)
-                    : currentExamType.duration_seconds
-                      ? Math.round(currentExamType.duration_seconds / 60)
-                      : 180;
+                  const durationSecs = exam.duration_seconds || currentExamType.duration_seconds || 10800;
                   const marks = totalQuestions * 4;
 
                   return (
@@ -842,7 +839,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                         <div className="grid grid-cols-2 gap-y-3 mb-6">
                           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                             <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '18px' }}>schedule</span>
-                            <span className="text-xs">{durationMinutes >= 60 ? `${durationMinutes / 60} Hours` : `${durationMinutes} mins`}</span>
+                            <span className="text-xs">{formatDurationFriendly(durationSecs)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                             <span className="material-symbols-outlined text-slate-400" style={{ fontSize: '18px' }}>quiz</span>

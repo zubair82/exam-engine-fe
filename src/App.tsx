@@ -15,6 +15,7 @@ import ContactPage from './pages/legal/ContactPage';
 import LegalHubPage from './pages/legal/LegalHubPage';
 import { Exam, ExamSession, AISuggestion, Subject, Question } from './types';
 import { useAuth } from './contexts/AuthContext';
+import { extractExamDurationSeconds } from './utils/durationUtils';
 
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
   const { user, isLoading } = useAuth();
@@ -183,8 +184,15 @@ export default function App() {
       });
       if (!examsRes.ok) throw new Error('Failed to fetch exams list');
       const examsData = await examsRes.json();
-      const currentExamMeta = examsData.find((e: any) => Number(e.paper_id) === Number(paperId));
+      const currentExamMeta = examsData.find((e: any) => 
+        String(e.paper_id) === String(paperId) || 
+        String(e.id) === String(paperId) ||
+        (e.exam_code && String(e.exam_code).toLowerCase() === String(paperId).toLowerCase())
+      );
       const totalQuestions = currentExamMeta && currentExamMeta.total_questions ? currentExamMeta.total_questions : 75;
+
+      let examDuration = extractExamDurationSeconds(currentExamMeta, 10800);
+      let examTitle = currentExamMeta?.title || currentExamMeta?.exam_code || `Mock Test ${paperId}`;
 
       // Fetch FIRST question dynamically to load UI instantly
       const firstQRes = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/exams/${paperId}/questions/1`, {
@@ -254,11 +262,9 @@ export default function App() {
         };
       });
 
-      const examDuration = currentExamMeta && currentExamMeta.duration_seconds ? currentExamMeta.duration_seconds : 10800;
-
       const exam: Exam = {
         id: String(paperId),
-        name: currentExamMeta && currentExamMeta.title ? currentExamMeta.title : `Mock Test ${paperId}`,
+        name: examTitle,
         description: 'Mock Test loaded from server',
         duration: examDuration,
         questions: initialQuestions
@@ -343,12 +349,24 @@ export default function App() {
         timeSpent[q.id] = parsedTimeSpent[q.id] || 0;
       });
 
+      const totalSpentSecs = Object.values(timeSpent).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+      let remainingSecs = examDuration;
+      if (sessionData && typeof sessionData.remaining_seconds === 'number' && sessionData.remaining_seconds > 0) {
+        if (sessionData.remaining_seconds < examDuration) {
+          remainingSecs = sessionData.remaining_seconds;
+        } else if (totalSpentSecs > 0) {
+          remainingSecs = Math.max(0, examDuration - totalSpentSecs);
+        } else {
+          remainingSecs = examDuration;
+        }
+      }
+
       setSession({
         paperId: paperId,
         answers: parsedAnswers,
         statuses: parsedStatuses,
         timeSpent: timeSpent,
-        secondsRemaining: sessionData.remaining_seconds,
+        secondsRemaining: remainingSecs,
         isCompleted: false,
         cheatingWarnings: sessionData.violations || 0
       });
@@ -368,9 +386,13 @@ export default function App() {
       });
       if (!examsRes.ok) throw new Error('Failed to fetch exams list');
       const examsData = await examsRes.json();
-      const currentExamMeta = examsData.find((e: any) => Number(e.paper_id) === Number(paperId));
+      const currentExamMeta = examsData.find((e: any) => 
+        Number(e.paper_id) === Number(paperId) || 
+        String(e.id) === String(paperId) ||
+        (e.exam_code && String(e.exam_code).toLowerCase() === String(paperId).toLowerCase())
+      );
       const totalQuestions = currentExamMeta && currentExamMeta.total_questions ? currentExamMeta.total_questions : 75;
-      const examDuration = currentExamMeta && currentExamMeta.duration_seconds ? currentExamMeta.duration_seconds : 10800;
+      const examDuration = extractExamDurationSeconds(currentExamMeta, 10800);
 
       // 1. Fetch Report Data
       const res = await fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/report/${paperId}`, {

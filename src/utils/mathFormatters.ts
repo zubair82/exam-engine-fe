@@ -92,11 +92,6 @@ export const splitLatexLines = (str: string) => {
         currentPart = '';
         i += 7; // skip 'newline'
         continue;
-      } else if (str.startsWith('\\n', i) && (i + 2 >= str.length || !/[a-zA-Z]/.test(str[i + 2]))) {
-        parts.push(currentPart.trim());
-        currentPart = '';
-        i += 1; // skip the 'n'
-        continue;
       } else if (str[i] === '\n') {
         parts.push(currentPart.trim());
         currentPart = '';
@@ -116,6 +111,13 @@ export const renderPreviewHtml = (text: any, diagramsText?: any) => {
 
   // Normalize MathLive escaped variations of [DIAGRAM_X] back to the standard format
   processedText = processedText.replace(/(?:\\lbrack|\\\[|\\left\[)\s*DIAGRAM(?:\\_|_)(\d+)\s*(?:\\rbrack|\\\]|\\right\])/g, '[DIAGRAM_$1]');
+
+  // Normalize LaTeX delimiters \( ... \) and \[ ... \] to $ and $$
+  processedText = processedText.replace(/(?<!\\)\\\(/g, '$').replace(/(?<!\\)\\\)/g, '$');
+  processedText = processedText.replace(/(?<!\\)\\\[/g, '$$').replace(/(?<!\\)\\\]/g, '$$');
+
+  // Fix escaped single-letter variables in plain text (e.g. \l, \m, \n, \s)
+  processedText = processedText.replace(/\\([lmns])(?![a-zA-Z])/g, '$1');
 
   const diagramMap = new Map<string, string>();
   if (diagramsText) {
@@ -187,6 +189,9 @@ export const renderPreviewHtml = (text: any, diagramsText?: any) => {
     // Replace \csc with \operatorname{cosec} as requested
     mathContent = mathContent.replace(/\\csc\b/g, '\\operatorname{cosec}');
 
+    // Clean stray escaped single-letter variables in math (e.g. \l -> l, \m -> m, \n -> n)
+    mathContent = mathContent.replace(/\\([lmns])(?![a-zA-Z])/g, '$1');
+
     // Fix stray escaped closing braces inside \text blocks
     mathContent = mathContent.replace(/\\text\{([^}]*?)\\\}/g, '\\text{$1}');
 
@@ -250,9 +255,8 @@ export const renderPreviewHtml = (text: any, diagramsText?: any) => {
               return `<span class="text-red-500">${escapeHtml(line)}</span>`;
             }
           });
-          const safeLatex = escapeHtml(match[0]).replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-          const rendered = renderedLines.join('<br/>');
-          html += `<span class="math-clickable cursor-pointer hover:bg-purple-50 hover:ring-2 hover:ring-purple-200 transition-all rounded px-1" data-index="${mathIndex}" data-latex="${safeLatex}" title="Click to edit">${rendered}</span>`;
+          const rendered = renderedLines.join(' ');
+          html += `<span class="katex-math inline-block leading-normal">${rendered}</span>`;
         }
       } else {
         html += renderDiagram(mathParts[i]);
@@ -446,8 +450,8 @@ export const smartFormatMath = (md: any) => {
   // LLMs often double-escape backslashes when outputting JSON.
   p = p.replace(/\\\\(begin|end|text|textbf|textit|frac|sqrt|left|right|hat|vec|sum|int|infty|alpha|beta|gamma|theta|mu|pi|pm|times|div|sin|cos|tan|log|ln|Rightarrow|rightarrow|Leftrightarrow|leftrightarrow|hline|vdots|ddots|bmatrix|pmatrix|vmatrix|Bmatrix|Vmatrix|cases|aligned|array|xrightarrow|xleftarrow|displaystyle)\b/g, '\\$1');
 
-  // Fix literal OCR newline markers (e.g. \\\n or \\n or \n) BEFORE doing anything else!
-  p = p.replace(/\\+n(?![a-zA-Z])/g, '\n');
+  // Clean up single-letter escaped variables (e.g. \l, \m, \n, \s)
+  p = p.replace(/\\([lmns])(?![a-zA-Z])/g, '$1');
 
   // Convert \\ line breaks to actual \n so they split into separate blocks, EXCEPT inside environments
   p = convertLineBreaks(p);

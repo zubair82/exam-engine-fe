@@ -14,6 +14,22 @@ interface ExamScreenProps {
   onSubmitExam: () => void;
 }
 
+export const isMultipleSelectQuestion = (type?: string): boolean => {
+  if (!type) return false;
+  const lower = type.toLowerCase().replace(/[_\s-]+/g, ' ').trim();
+  if (lower.includes('single')) return false;
+  if (lower.includes('numerical') || lower.includes('integer')) return false;
+  return (
+    lower.includes('multiple select') ||
+    lower.includes('multi select') ||
+    lower.includes('multiple choice') ||
+    lower.includes('multi choice') ||
+    lower.includes('more than one') ||
+    lower.includes('one or more') ||
+    lower.includes('multiple')
+  );
+};
+
 export default function ExamScreen({
   exam,
   session,
@@ -214,17 +230,67 @@ export default function ExamScreen({
     ].join(':');
   };
 
-  // Answer choice
-  const handleSelectOption = (optionIndex: number | string) => {
-    const updatedAnswers = { ...session.answers };
-    updatedAnswers[activeQuestion.id] = optionIndex;
+  // Helper to check if an option index is currently selected in single or multi-select
+  const isOptionSelected = (questionId: number, index: number): boolean => {
+    const ans = session.answers[questionId];
+    if (ans === undefined || ans === null) return false;
+    if (Array.isArray(ans)) {
+      return ans.includes(index);
+    }
+    if (typeof ans === 'string') {
+      const parts = ans.split(',').map(s => s.trim());
+      if (parts.includes(String(index))) return true;
+      const letters = ['A', 'B', 'C', 'D'];
+      if (parts.includes(letters[index])) return true;
+    }
+    return ans === index;
+  };
 
+  // Answer choice (handles both single-choice radio and multi-select checkbox)
+  const handleSelectOption = (optionIndex: number | string) => {
+    const isMulti = isMultipleSelectQuestion(activeQuestion.type);
+    const updatedAnswers = { ...session.answers };
+
+    if (isMulti && typeof optionIndex === 'number') {
+      const currentAns = updatedAnswers[activeQuestion.id];
+      let selectedList: number[] = [];
+      if (Array.isArray(currentAns)) {
+        selectedList = [...currentAns];
+      } else if (typeof currentAns === 'number') {
+        selectedList = [currentAns];
+      }
+
+      if (selectedList.includes(optionIndex)) {
+        selectedList = selectedList.filter(idx => idx !== optionIndex);
+      } else {
+        selectedList = [...selectedList, optionIndex].sort((a, b) => a - b);
+      }
+
+      if (selectedList.length > 0) {
+        updatedAnswers[activeQuestion.id] = selectedList;
+      } else {
+        delete updatedAnswers[activeQuestion.id];
+      }
+    } else {
+      updatedAnswers[activeQuestion.id] = optionIndex;
+    }
+
+    const hasAnswer = updatedAnswers[activeQuestion.id] !== undefined;
     const updatedStatuses = { ...session.statuses };
     const currentStatus = session.statuses[activeQuestion.id];
-    if (currentStatus === 'marked' || currentStatus === 'answered_marked') {
-      updatedStatuses[activeQuestion.id] = 'answered_marked';
+
+    if (hasAnswer) {
+      if (currentStatus === 'marked' || currentStatus === 'answered_marked') {
+        updatedStatuses[activeQuestion.id] = 'answered_marked';
+      } else {
+        updatedStatuses[activeQuestion.id] = 'answered';
+      }
     } else {
-      updatedStatuses[activeQuestion.id] = 'answered';
+      if (currentStatus === 'answered_marked') {
+        updatedStatuses[activeQuestion.id] = 'marked';
+      } else {
+        updatedStatuses[activeQuestion.id] = 'not_answered';
+      }
     }
 
     onUpdateSession({
@@ -574,7 +640,7 @@ export default function ExamScreen({
               className="overflow-y-auto p-4 sm:p-6"
             >
               <div className="text-slate-900 dark:text-slate-200 leading-relaxed font-normal text-base w-full max-w-full overflow-x-auto">
-                <div className="whitespace-pre-wrap break-words"><MathText text={activeQuestion.text} diagramsText={activeQuestion.diagrams} /></div>
+                <div className="break-words leading-relaxed"><MathText text={activeQuestion.text} diagramsText={activeQuestion.diagrams} /></div>
               </div>
             </div>
 
@@ -612,25 +678,40 @@ export default function ExamScreen({
                   </div>
                 ) : (
                   activeQuestion.options.map((optionStr, index) => {
-                    const isSelected = session.answers[activeQuestion.id] === index;
+                    const isMulti = isMultipleSelectQuestion(activeQuestion.type);
+                    const isSelected = isOptionSelected(activeQuestion.id, index);
                     return (
                       <button
                         key={index}
                         onClick={() => handleSelectOption(index)}
-                        className={`flex items-center p-4 border rounded-xl cursor-pointer text-left transition-all group ${isSelected
-                          ? 'border-blue-900 dark:border-blue-500 bg-blue-50 dark:bg-blue-950/70'
+                        className={`flex items-start p-4 border rounded-xl cursor-pointer text-left transition-all group ${isSelected
+                          ? 'border-blue-900 dark:border-blue-500 bg-blue-50 dark:bg-blue-950/70 shadow-sm'
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e2330] hover:bg-slate-50 dark:hover:border-blue-500'
                           }`}
                       >
-                        {/* Custom Styled Radio circular bullet */}
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-4 transition-all shrink-0 ${isSelected
-                          ? 'border-blue-900 dark:border-blue-500 bg-blue-500 dark:bg-blue-500'
-                          : 'border-slate-300 dark:border-slate-600 group-hover:border-blue-900 dark:group-hover:border-blue-400 bg-white dark:bg-[#1a1e29]'
-                          }`}>
-                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
-                        </div>
+                        {isMulti ? (
+                          /* Custom Styled Checkbox for Multiple Select */
+                          <div className={`w-4 h-4 mt-0.5 rounded-[4px] border flex items-center justify-center mr-4 transition-all shrink-0 ${isSelected
+                            ? 'border-blue-900 dark:border-blue-500 bg-blue-600 dark:bg-blue-500 text-white'
+                            : 'border-slate-300 dark:border-slate-600 group-hover:border-blue-900 dark:group-hover:border-blue-400 bg-white dark:bg-[#1a1e29]'
+                            }`}>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                        ) : (
+                          /* Custom Styled Radio circular bullet for Single Choice */
+                          <div className={`w-4 h-4 mt-0.5 rounded-full border flex items-center justify-center mr-4 transition-all shrink-0 ${isSelected
+                            ? 'border-blue-900 dark:border-blue-500 bg-blue-500 dark:bg-blue-500'
+                            : 'border-slate-300 dark:border-slate-600 group-hover:border-blue-900 dark:group-hover:border-blue-400 bg-white dark:bg-[#1a1e29]'
+                            }`}>
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
+                          </div>
+                        )}
 
-                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
+                        <span className={`text-sm leading-relaxed flex-1 ${isSelected ? 'text-blue-900 dark:text-blue-300 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
                           <MathText text={optionStr} diagramsText={activeQuestion.diagrams} />
                         </span>
                       </button>

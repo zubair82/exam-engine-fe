@@ -673,7 +673,7 @@ export default function ReportScreen({
                 </div>
 
                 {/* Question body text */}
-                <div className="text-sm font-medium leading-relaxed whitespace-pre-wrap text-slate-900 dark:text-slate-100"><MathText text={currentFullQ?.text ?? selectedQuestion.text} diagramsText={actualDiagrams} /></div>
+                <div className="text-sm font-medium leading-relaxed break-words text-slate-900 dark:text-slate-100"><MathText text={currentFullQ?.text ?? selectedQuestion.text} diagramsText={actualDiagrams} /></div>
 
                 {/* Question options */}
                 {selectedQuestion.type === 'numerical' ? (

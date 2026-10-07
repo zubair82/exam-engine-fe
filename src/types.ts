@@ -27,7 +27,7 @@ export interface Exam {
 
 export interface ExamSession {
   paperId: number;
-  answers: Record<number, number | string>; // questionId -> chosen index (0-3) or numerical string
+  answers: Record<number, number | string | number[]>; // questionId -> chosen index (0-3), numerical string, or array of indices
   statuses: Record<number, QuestionStatus>; // questionId -> QuestionStatus
   timeSpent: Record<number, number>; // questionId -> seconds spent
   secondsRemaining: number;

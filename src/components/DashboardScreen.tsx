@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import Footer from './Footer';
 import ExamSimulaLogo from './Logo';
+import { extractExamDurationSeconds, formatDurationFriendly } from '../utils/durationUtils';
 
 interface DashboardScreenProps {
   onStartExam: (paperId: number) => void;
@@ -253,7 +254,7 @@ export default function DashboardScreen({
                       <div className="w-full bg-slate-100 dark:bg-[#1a1e29] rounded-full h-2">
                         <div className="bg-blue-900 dark:bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.round(((inProgressExam.attempted_questions || 0) / (inProgressExam.total_questions || 90)) * 100))}%` }}></div>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400 mt-2 text-right">{inProgressExam.duration_minutes || 180} mins Total</p>
+                      <p className="text-[11px] font-bold text-slate-400 dark:text-slate-400 mt-2 text-right">{formatDurationFriendly(extractExamDurationSeconds(inProgressExam, 10800))} Total</p>
                     </div>
                   </div>
 

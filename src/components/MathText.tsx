@@ -7,12 +7,12 @@ interface MathTextProps {
   diagramsText?: string;
 }
 
-export const MathText = ({ text, diagramsText }: MathTextProps) => {
+export const MathText = ({ text, diagramsText, className = '' }: MathTextProps & { className?: string }) => {
   if (!text) return null;
   
   const html = renderPreviewHtml(text, diagramsText);
   
   return (
-    <div className="w-full max-w-full break-words overflow-x-auto" dangerouslySetInnerHTML={{ __html: html }} />
+    <span className={`inline leading-relaxed ${className}`} dangerouslySetInnerHTML={{ __html: html }} />
   );
 };

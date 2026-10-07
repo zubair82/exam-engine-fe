@@ -1,16 +1,56 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import Footer from './Footer';
 import ExamSimulaLogo from './Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginScreen() {
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
   const redirectParam = searchParams.get('redirect_uri') || searchParams.get('redirect_url');
-  const redirectOrigin = redirectParam || (window.location.origin + '/dashboard');
+  const refCode = searchParams.get('ref');
+  const teacherParam = searchParams.get('teacher');
+
+  // Save referral codes if passed directly on /login
+  if (refCode) {
+    localStorage.setItem('referral_code', refCode);
+    sessionStorage.setItem('referral_code', refCode);
+  }
+  if (teacherParam) {
+    localStorage.setItem('referral_teacher', teacherParam);
+    sessionStorage.setItem('referral_teacher', teacherParam);
+  }
+  if (refCode || teacherParam) {
+    const s = new URLSearchParams();
+    if (refCode) s.set('ref', refCode);
+    if (teacherParam) s.set('teacher', teacherParam);
+    const target = `/question-papers?${s.toString()}`;
+    localStorage.setItem('referral_post_login', target);
+    sessionStorage.setItem('referral_post_login', target);
+  }
+
+  // If already authenticated, redirect immediately
+  useEffect(() => {
+    if (!isLoading && user) {
+      const referralRedirect = sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login');
+      if (referralRedirect) {
+        sessionStorage.removeItem('referral_post_login');
+        localStorage.removeItem('referral_post_login');
+        navigate(referralRedirect, { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate]);
+
+  // Clean origin redirect for backend OAuth compatibility
+  const redirectOrigin = redirectParam
+    ? (redirectParam.startsWith('http') ? redirectParam : `${window.location.origin}${redirectParam.startsWith('/') ? '' : '/'}${redirectParam}`)
+    : `${window.location.origin}/dashboard`;
 
   const loginUrl = `${import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5001'}/api/v1/auth/google/login?role=STUDENT&redirect_url=${encodeURIComponent(redirectOrigin)}`;
 

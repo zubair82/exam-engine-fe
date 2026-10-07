@@ -20,14 +20,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get('token');
-    if (tokenFromUrl) {
+    // Robustly extract token from href or query string (handles ?token=, &token=, and malformed double queries)
+    const href = window.location.href;
+    const match = href.match(/[?&#]token=([^&#]+)/);
+    if (match && match[1]) {
+      const tokenFromUrl = decodeURIComponent(match[1]);
       localStorage.setItem('auth_token', tokenFromUrl);
-      urlParams.delete('token');
-      const remainingSearch = urlParams.toString();
-      const newUrl = window.location.pathname + (remainingSearch ? `?${remainingSearch}` : '');
-      window.history.replaceState({}, document.title, newUrl);
+      
+      // Clean token from the URL without triggering a reload
+      const cleanHref = href.replace(/[?&]token=[^&#]*/, '').replace(/(\?|&)$/, '');
+      window.history.replaceState({}, document.title, cleanHref);
       return tokenFromUrl;
     }
     return localStorage.getItem('auth_token');

@@ -126,8 +126,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Referral URL state
-  const teacherSlug = searchParams.get('teacher') || '';
-  const refCode = searchParams.get('ref') || '';
+  const teacherSlug = searchParams.get('teacher') || localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || '';
+  const refCode = searchParams.get('ref') || localStorage.getItem('referral_code') || sessionStorage.getItem('referral_code') || '';
   const viewParam = searchParams.get('view'); // 'teacher' | 'all'
   const hasReferral = Boolean(teacherSlug || refCode);
 
@@ -157,7 +157,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
       .catch(err => console.error("Failed to resolve teacher by referral code:", err));
   }, [refCode]);
 
-  // Initialize state: 'teacher' if URL contains referral/teacher identifier, otherwise 'all'
+  // Initialize state: 'teacher' if URL or session contains referral/teacher identifier, otherwise 'all'
   const activeView: 'teacher' | 'all' = hasReferral
     ? (viewParam === 'all' ? 'all' : 'teacher')
     : 'all';
@@ -346,15 +346,27 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
     return 'Teacher';
   }, [referredTeacher, teacherSlug]);
 
-  // Check if an exam belongs to the referred teacher by comparing teacher_id
+  // Check if an exam belongs to the referred teacher by comparing teacher_id, display_name, or slug
   const isExamByReferredTeacher = (exam: ExamItem): boolean => {
     if (!hasReferral) return true;
 
-    // Compare exam_paper's teacher_id with the teacher_id resolved from the referral code
+    // 1. Compare exam_paper's teacher_id with the teacher_id resolved from the referral code
     if (referredTeacher?.teacher_id && exam.teacher_id) {
-      const cleanPaperTeacherId = exam.teacher_id.replace(/-/g, '').toLowerCase().trim();
-      const cleanReferredId = referredTeacher.teacher_id.replace(/-/g, '').toLowerCase().trim();
-      return cleanPaperTeacherId === cleanReferredId;
+      const cleanPaperTeacherId = String(exam.teacher_id).replace(/-/g, '').toLowerCase().trim();
+      const cleanReferredId = String(referredTeacher.teacher_id).replace(/-/g, '').toLowerCase().trim();
+      if (cleanPaperTeacherId === cleanReferredId) return true;
+    }
+
+    // 2. Compare resolved teacher display_name with exam display_name
+    if (referredTeacher?.display_name && exam.display_name) {
+      if (exam.display_name.trim().toLowerCase() === referredTeacher.display_name.trim().toLowerCase()) return true;
+    }
+
+    // 3. Compare teacher slug against exam display_name
+    if (teacherSlug && exam.display_name) {
+      const slugFromName = exam.display_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const cleanSlug = teacherSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (slugFromName === cleanSlug) return true;
     }
 
     return false;
@@ -363,7 +375,25 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   // Count of teacher-specific exams in the current category
   const teacherExamsCount = useMemo(() => {
     return exams.filter(e => isExamByReferredTeacher(e) && matchesExamCategory(e, activeCategory, examTypes)).length;
-  }, [exams, activeCategory, examTypes, referredTeacher, hasReferral]);
+  }, [exams, activeCategory, examTypes, referredTeacher, hasReferral, teacherSlug]);
+
+  // Auto-switch to category containing teacher's exams if currently empty
+  useEffect(() => {
+    if (hasReferral && activeView === 'teacher' && exams.length > 0) {
+      const teacherExams = exams.filter(e => isExamByReferredTeacher(e));
+      if (teacherExams.length > 0) {
+        const hasExamsInCurrentCat = teacherExams.some(e => matchesExamCategory(e, activeCategory, examTypes));
+        if (!hasExamsInCurrentCat) {
+          for (const type of examTypes) {
+            if (teacherExams.some(e => matchesExamCategory(e, type.exam_code, examTypes))) {
+              setActiveCategory(type.exam_code);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }, [exams, referredTeacher, hasReferral, activeView, examTypes]);
 
   // Reset pagination on filter or view changes
   useEffect(() => {
@@ -447,7 +477,10 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const paginatedExams = filteredExams.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getCategoryCount = (categoryCode: string) => {
-    return exams.filter(e => matchesExamCategory(e, categoryCode, examTypes)).length;
+    return exams.filter(e => {
+      if (hasReferral && activeView === 'teacher' && !isExamByReferredTeacher(e)) return false;
+      return matchesExamCategory(e, categoryCode, examTypes);
+    }).length;
   };
 
   return (

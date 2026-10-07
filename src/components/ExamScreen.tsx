@@ -24,7 +24,10 @@ export default function ExamScreen({
   const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [activeSubject, setActiveSubject] = useState<string>('Mathematics');
-  const [showCalculator, setShowCalculator] = useState(false);
+  // Virtual Calculator state (Commented out: JEE & NEET exams do not allow virtual calculators)
+  // const [showCalculator, setShowCalculator] = useState(false);
+  // const [calcInput, setCalcInput] = useState('');
+  // const [calcResult, setCalcResult] = useState('');
   const [showCheatingWarning, setShowCheatingWarning] = useState(false);
   const [showMobileQuestionsPane, setShowMobileQuestionsPane] = useState(false);
 
@@ -38,8 +41,6 @@ export default function ExamScreen({
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navigate]);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [calcInput, setCalcInput] = useState('');
-  const [calcResult, setCalcResult] = useState('');
   const [showFullscreenPopup, setShowFullscreenPopup] = useState(!document.fullscreenElement);
   
   // Resizable split pane state
@@ -319,7 +320,8 @@ export default function ExamScreen({
     }
   };
 
-  // Calculator helper operations
+  // Calculator helper operations (Commented out: JEE and NEET do not provide virtual calculators)
+  /*
   const handleCalcPress = (val: string) => {
     if (val === 'C') {
       setCalcInput('');
@@ -336,6 +338,7 @@ export default function ExamScreen({
       setCalcInput((prev) => prev + val);
     }
   };
+  */
 
   // Calculate session summary stats
   const getSessionStats = () => {
@@ -446,7 +449,8 @@ export default function ExamScreen({
         )}
       </AnimatePresence>
 
-      {/* Floating Virtual Calculator Overlay */}
+      {/* Floating Virtual Calculator Overlay (Commented out: JEE and NEET do not provide virtual calculators) */}
+      {/*
       <AnimatePresence>
         {showCalculator && (
           <motion.div
@@ -468,13 +472,11 @@ export default function ExamScreen({
               </button>
             </div>
 
-            {/* Calc Display */}
             <div className="bg-slate-950 dark:bg-[#1a1e29] rounded p-2 text-right font-mono text-sm h-14 flex flex-col justify-between overflow-hidden mb-3 border border-slate-800 dark:border-slate-700">
               <span className="text-[10px] text-slate-500 overflow-x-auto whitespace-nowrap block">{calcInput || '0'}</span>
               <span className="text-blue-400 font-bold text-base block">{calcResult || ' '}</span>
             </div>
 
-            {/* Calc Keys */}
             <div className="grid grid-cols-4 gap-2 text-xs font-semibold">
               {['(', ')', '/', 'C', '7', '8', '9', '*', '4', '5', '6', '-', '1', '2', '3', '+', '0', '.', '='].map((key) => (
                 <button
@@ -494,6 +496,7 @@ export default function ExamScreen({
           </motion.div>
         )}
       </AnimatePresence>
+      */}
 
       {/* Top Header Strip */}
       <header className="w-full bg-white dark:bg-[#222736] border-b border-slate-200 dark:border-slate-700/60 shrink-0 relative z-20 h-4 shadow-sm"></header>
@@ -519,6 +522,8 @@ export default function ExamScreen({
 
         {/* Action icons / Theme toggle on right of strip */}
         <div className="hidden md:flex items-center gap-3">
+          {/* Virtual Calculator button (Commented out: JEE & NEET exams do not provide a calculator) */}
+          {/*
           <button
             onClick={() => setShowCalculator(!showCalculator)}
             className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#252b3b] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#1e2330] flex items-center gap-1.5 text-xs font-semibold cursor-pointer shadow-sm transition-colors"
@@ -527,6 +532,7 @@ export default function ExamScreen({
             <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>Calculator</span>
           </button>
+          */}
           <ThemeToggle size="sm" />
         </div>
       </div>

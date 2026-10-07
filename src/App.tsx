@@ -27,7 +27,8 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role.toLowerCase())) {
+  const role = (user.role || 'student').toLowerCase();
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.map(r => r.toLowerCase()).includes(role)) {
     return <Navigate to="/home" replace />;
   }
 
@@ -40,21 +41,28 @@ const AcademyRoute = () => {
   const params = useParams<{ slug?: string }>();
 
   const searchParams = new URLSearchParams(location.search);
-  if (params.slug && !searchParams.has('teacher')) {
-    searchParams.set('teacher', params.slug);
-  }
-  const searchStr = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  const rawRef = searchParams.get('ref') || localStorage.getItem('referral_code') || sessionStorage.getItem('referral_code') || '';
+  const slug = params.slug || searchParams.get('teacher') || localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || '';
+
+  const forwardParams = new URLSearchParams();
+  if (rawRef) forwardParams.set('ref', rawRef);
+  if (slug) forwardParams.set('teacher', slug);
+
+  const searchStr = forwardParams.toString() ? `?${forwardParams.toString()}` : '';
   const targetUrl = `/question-papers${searchStr}`;
 
   useEffect(() => {
-    const rawRef = searchParams.get('ref');
     if (rawRef) {
       localStorage.setItem('referral_code', rawRef);
       sessionStorage.setItem('referral_code', rawRef);
     }
+    if (slug) {
+      localStorage.setItem('referral_teacher', slug);
+      sessionStorage.setItem('referral_teacher', slug);
+    }
     sessionStorage.setItem('referral_post_login', targetUrl);
     localStorage.setItem('referral_post_login', targetUrl);
-  }, [targetUrl]);
+  }, [rawRef, slug, targetUrl]);
 
   if (isLoading) {
     return (
@@ -843,24 +851,53 @@ export default function App() {
 
   const { user, isLoading } = useAuth();
 
+  // Intercept any URL query parameters with referral code across any entry route
   useEffect(() => {
-    // Check if we should redirect from landing/login/academy pages to destination based on role & referral
+    const params = new URLSearchParams(location.search);
+    const refCode = params.get('ref');
+    const teacherParam = params.get('teacher');
+
+    if (refCode) {
+      localStorage.setItem('referral_code', refCode);
+      sessionStorage.setItem('referral_code', refCode);
+    }
+    if (teacherParam) {
+      localStorage.setItem('referral_teacher', teacherParam);
+      sessionStorage.setItem('referral_teacher', teacherParam);
+    }
+
+    if (refCode || teacherParam) {
+      const targetParams = new URLSearchParams();
+      if (refCode) targetParams.set('ref', refCode);
+      if (teacherParam) targetParams.set('teacher', teacherParam);
+      const targetUrl = `/question-papers?${targetParams.toString()}`;
+      localStorage.setItem('referral_post_login', targetUrl);
+      sessionStorage.setItem('referral_post_login', targetUrl);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    // Check if we should redirect from landing/login/academy/dashboard pages to destination based on role & referral
     if (!isLoading && user) {
+      const referralRedirect = sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login');
       const normalizedPath = location.pathname.replace(/\/$/, '');
-      if (normalizedPath === '/home' || normalizedPath === '/login' || normalizedPath === '' || normalizedPath.startsWith('/academy')) {
-        const referralRedirect = sessionStorage.getItem('referral_post_login') || localStorage.getItem('referral_post_login');
-        const postLoginAction = localStorage.getItem('postLoginAction');
 
-        // Clear legacy keys if present
-        localStorage.removeItem('es_active_ref');
-        localStorage.removeItem('postLoginRedirect');
+      // Clear legacy keys if present
+      localStorage.removeItem('es_active_ref');
+      localStorage.removeItem('postLoginRedirect');
 
-        if (referralRedirect) {
-          sessionStorage.removeItem('referral_post_login');
-          localStorage.removeItem('referral_post_login');
+      if (referralRedirect) {
+        sessionStorage.removeItem('referral_post_login');
+        localStorage.removeItem('referral_post_login');
+        const currentFull = location.pathname + (location.search ? location.search : '');
+        if (currentFull !== referralRedirect) {
           navigate(referralRedirect, { replace: true });
           return;
         }
+      }
+
+      if (normalizedPath === '/home' || normalizedPath === '/login' || normalizedPath === '' || normalizedPath.startsWith('/academy')) {
+        const postLoginAction = localStorage.getItem('postLoginAction');
 
         if (postLoginAction === 'startFirstMockTest') {
           localStorage.removeItem('postLoginAction');
@@ -888,7 +925,7 @@ export default function App() {
         }
       }
     }
-  }, [user, isLoading, location.pathname, navigate]);
+  }, [user, isLoading, location.pathname, location.search, navigate]);
 
   return (
     <div className="w-full h-full min-h-screen bg-slate-50 dark:bg-[#1a1e29] text-slate-900 dark:text-slate-100 overflow-x-hidden">

@@ -126,10 +126,18 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Referral URL state
-  const teacherSlug = searchParams.get('teacher') || localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || '';
-  const refCode = searchParams.get('ref') || localStorage.getItem('referral_code') || sessionStorage.getItem('referral_code') || '';
+  // Referral URL and storage state
+  const urlTeacher = searchParams.get('teacher') || '';
+  const urlRef = searchParams.get('ref') || '';
   const viewParam = searchParams.get('view'); // 'teacher' | 'all'
+
+  const storedTeacher = localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || '';
+  const storedRef = localStorage.getItem('referral_code') || sessionStorage.getItem('referral_code') || '';
+
+  const teacherSlug = urlTeacher || storedTeacher;
+  const refCode = urlRef || storedRef;
+
+  // The option button will be available only when localStorage or URL has some referral value.
   const hasReferral = Boolean(teacherSlug || refCode);
 
   // Resolved teacher details from referral code
@@ -142,9 +150,18 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   });
 
   useEffect(() => {
+    if (urlRef) {
+      localStorage.setItem('referral_code', urlRef);
+      sessionStorage.setItem('referral_code', urlRef);
+    }
+    if (urlTeacher) {
+      localStorage.setItem('referral_teacher', urlTeacher);
+      sessionStorage.setItem('referral_teacher', urlTeacher);
+    }
+  }, [urlRef, urlTeacher]);
+
+  useEffect(() => {
     if (!refCode) return;
-    localStorage.setItem('referral_code', refCode);
-    sessionStorage.setItem('referral_code', refCode);
     fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/teacher/referral/${refCode}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -158,16 +175,35 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
       .catch(err => console.error("Failed to resolve teacher by referral code:", err));
   }, [refCode]);
 
-  // Initialize state: 'teacher' if URL or session contains referral/teacher identifier, otherwise 'all'
-  const activeView: 'teacher' | 'all' = hasReferral
-    ? (viewParam === 'all' ? 'all' : 'teacher')
-    : 'all';
+  // Active view:
+  // - If 'view' param is explicitly 'all', show 'all'.
+  // - If 'view' param is explicitly 'teacher', show 'teacher'.
+  // - If no view param in URL:
+  //     * If URL explicitly has referral params (?ref= or ?teacher=), default to 'teacher'
+  //     * Otherwise (e.g. clean /question-papers), default to 'all' so all marketplace papers show!
+  const activeView: 'teacher' | 'all' = useMemo(() => {
+    if (!hasReferral) return 'all';
+    if (viewParam === 'all') return 'all';
+    if (viewParam === 'teacher') return 'teacher';
+    if (urlRef || urlTeacher) return 'teacher';
+    return 'all';
+  }, [hasReferral, viewParam, urlRef, urlTeacher]);
 
   const handleToggleView = (newView: 'teacher' | 'all') => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('view', newView);
-    setSearchParams(nextParams, { replace: true });
+    if (newView === 'all') {
+      navigate('/question-papers', { replace: true });
+    } else {
+      const targetRef = urlRef || storedRef;
+      const targetTeacher = urlTeacher || storedTeacher;
+      const nextParams = new URLSearchParams();
+      if (targetRef) nextParams.set('ref', targetRef);
+      if (targetTeacher) nextParams.set('teacher', targetTeacher);
+      navigate(`/question-papers${nextParams.toString() ? `?${nextParams.toString()}` : ''}`, { replace: true });
+    }
     setCurrentPage(1);
+    setStatusFilter('All Tests');
+    setSearchQuery('');
+    setSelectedSubjects([]);
   };
 
   const [examTypes, setExamTypes] = useState<ExamTypeConfig[]>(DEFAULT_EXAM_TYPES);
@@ -378,23 +414,56 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
     return exams.filter(e => isExamByReferredTeacher(e) && matchesExamCategory(e, activeCategory, examTypes)).length;
   }, [exams, activeCategory, examTypes, referredTeacher, hasReferral, teacherSlug]);
 
-  // Auto-switch to category containing teacher's exams if currently empty
+  // Auto-switch to category and tab containing exams if currently empty
   useEffect(() => {
-    if (hasReferral && activeView === 'teacher' && exams.length > 0) {
+    if (exams.length === 0) return;
+
+    if (hasReferral && activeView === 'teacher') {
       const teacherExams = exams.filter(e => isExamByReferredTeacher(e));
       if (teacherExams.length > 0) {
+        // 1. Resolve category: ensure activeCategory has teacher's exams
+        let targetCategory = activeCategory;
         const hasExamsInCurrentCat = teacherExams.some(e => matchesExamCategory(e, activeCategory, examTypes));
         if (!hasExamsInCurrentCat) {
           for (const type of examTypes) {
             if (teacherExams.some(e => matchesExamCategory(e, type.exam_code, examTypes))) {
-              setActiveCategory(type.exam_code);
+              targetCategory = type.exam_code;
+              setActiveCategory(targetCategory);
+              break;
+            }
+          }
+        }
+
+        // 2. Resolve tab: ensure activeTab has teacher's exams in targetCategory
+        const examsInCat = teacherExams.filter(e => matchesExamCategory(e, targetCategory, examTypes));
+        const hasExamsInCurrentTab = examsInCat.some(e => getExamPaperType(e) === activeTab);
+        if (!hasExamsInCurrentTab && examsInCat.length > 0) {
+          const tabOrder: ('Full Mocks' | 'Subject Tests' | 'Previous Year Papers')[] = ['Full Mocks', 'Subject Tests', 'Previous Year Papers'];
+          for (const tab of tabOrder) {
+            if (examsInCat.some(e => getExamPaperType(e) === tab)) {
+              setActiveTab(tab);
+              break;
+            }
+          }
+        }
+      }
+    } else if (activeView === 'all') {
+      // In explore all mode, if activeCategory has 0 exams in activeTab, switch to a tab with exams
+      const allInCat = exams.filter(e => matchesExamCategory(e, activeCategory, examTypes));
+      if (allInCat.length > 0) {
+        const hasExamsInCurrentTab = allInCat.some(e => getExamPaperType(e) === activeTab);
+        if (!hasExamsInCurrentTab) {
+          const tabOrder: ('Full Mocks' | 'Subject Tests' | 'Previous Year Papers')[] = ['Full Mocks', 'Subject Tests', 'Previous Year Papers'];
+          for (const tab of tabOrder) {
+            if (allInCat.some(e => getExamPaperType(e) === tab)) {
+              setActiveTab(tab);
               break;
             }
           }
         }
       }
     }
-  }, [exams, referredTeacher, hasReferral, activeView, examTypes]);
+  }, [exams, referredTeacher, hasReferral, activeView, activeCategory, examTypes]);
 
   // Reset pagination on filter or view changes
   useEffect(() => {
@@ -508,16 +577,16 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                     key={type.exam_code}
                     onClick={() => setActiveCategory(type.exam_code)}
                     className={`pb-1 text-sm font-semibold transition-all whitespace-nowrap cursor-pointer relative flex items-center gap-1.5 ${isSelected
-                        ? 'text-blue-900 dark:text-blue-400 border-b-2 border-blue-900 dark:border-blue-500 font-bold'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
+                      ? 'text-blue-900 dark:text-blue-400 border-b-2 border-blue-900 dark:border-blue-500 font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
                       }`}
                     title={type.name}
                   >
                     <span>{type.exam_code}</span>
                     {count > 0 && (
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isSelected
-                          ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300'
-                          : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                        ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300'
+                        : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
                         }`}>
                         {count}
                       </span>
@@ -591,8 +660,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
               key={type.exam_code}
               onClick={() => setActiveCategory(type.exam_code)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${isSelected
-                  ? 'bg-blue-900 dark:bg-blue-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-[#1e2330] text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                ? 'bg-blue-900 dark:bg-blue-600 text-white shadow-sm'
+                : 'bg-slate-100 dark:bg-[#1e2330] text-slate-600 dark:text-slate-400 hover:bg-slate-200'
                 }`}
             >
               <span>{type.exam_code}</span>
@@ -618,15 +687,15 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`pb-4 border-b-2 text-base md:text-lg flex items-center gap-2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${activeTab === tab
-                      ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
-                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
+                    ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
                     }`}
                 >
                   <span>{tab}</span>
                   {count > 0 && (
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${activeTab === tab
-                        ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300'
-                        : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                      ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300'
+                      : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
                       }`}>
                       {count}
                     </span>
@@ -722,23 +791,47 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             {hasReferral && (
               <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50/60 dark:from-[#202637] dark:via-[#1e2433] dark:to-[#1a1e29] border border-blue-200/70 dark:border-blue-500/20 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20 shrink-0">
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>school</span>
+                  <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shadow-md shrink-0 transition-colors ${
+                    activeView === 'teacher'
+                      ? 'bg-blue-600 shadow-blue-500/20'
+                      : 'bg-indigo-600 shadow-indigo-500/20'
+                  }`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+                      {activeView === 'teacher' ? 'school' : 'public'}
+                    </span>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-950/80 px-2 py-0.5 rounded-md">
-                        Teacher Referral
-                      </span>
-                      {refCode && (
-                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                          {refCode}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                      Recommended by <span className="font-bold text-blue-900 dark:text-blue-300">{formattedTeacherName}</span>
-                    </p>
+                    {activeView === 'teacher' ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-950/80 px-2 py-0.5 rounded-md">
+                            Teacher Referral
+                          </span>
+                          {refCode && (
+                            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                              {refCode}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                          Recommended by <span className="font-bold text-blue-900 dark:text-blue-300">{formattedTeacherName}</span>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md">
+                            Marketplace Tests
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            All Educators
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                          Explore mock tests uploaded across ExamSimula
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -746,30 +839,27 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                 <div className="flex items-center bg-slate-200/80 dark:bg-[#161a24] p-1 rounded-xl border border-slate-300/70 dark:border-slate-700/60 self-stretch sm:self-auto shrink-0">
                   <button
                     onClick={() => handleToggleView('teacher')}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      activeView === 'teacher'
+                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeView === 'teacher'
                         ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person</span>
                     <span>{formattedTeacherName}'s Tests</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                      activeView === 'teacher'
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeView === 'teacher'
                         ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300'
                         : 'bg-slate-300/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                    }`}>
+                      }`}>
                       {teacherExamsCount}
                     </span>
                   </button>
 
                   <button
                     onClick={() => handleToggleView('all')}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                      activeView === 'all'
+                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeView === 'all'
                         ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
+                      }`}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>grid_view</span>
                     <span>Explore All</span>
@@ -823,10 +913,10 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                             {normalizeExamCategory(exam, examTypes)}
                           </span>
                           <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${exam.status.toLowerCase() === 'attempted'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                              : exam.status.toLowerCase() === 'in progress'
-                                ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-                                : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : exam.status.toLowerCase() === 'in progress'
+                              ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                              : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
                             }`}>
                             {exam.status}
                           </span>
@@ -977,8 +1067,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                         key={pageNumber}
                         onClick={() => setCurrentPage(pageNumber)}
                         className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors cursor-pointer ${currentPage === pageNumber
-                            ? 'border-blue-600 bg-blue-600 text-white font-bold'
-                            : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#1e2330] text-slate-700 dark:text-slate-300'
+                          ? 'border-blue-600 bg-blue-600 text-white font-bold'
+                          : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#1e2330] text-slate-700 dark:text-slate-300'
                           }`}
                       >
                         {pageNumber}

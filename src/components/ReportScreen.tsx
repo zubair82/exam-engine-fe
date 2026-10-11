@@ -761,15 +761,12 @@ export default function ReportScreen({
                         <span className="font-bold text-xs uppercase tracking-wide">Unattempted</span>
                         <span className="font-semibold text-[10px]">+0 Marks</span>
                       </div>
-                    ) : (selectedQuestion.type === 'numerical' ? (
-                      (() => {
-                        const extractedSelected = String(session.answers[selectedQuestion.id]).match(/-?\d+(\.\d+)?/);
-                        const extractedCorrect = String(currentFullQ?.answerText ?? "").match(/-?\d+(\.\d+)?/);
-                        const valSelected = extractedSelected ? parseFloat(extractedSelected[0]) : NaN;
-                        const valCorrect = extractedCorrect ? parseFloat(extractedCorrect[0]) : NaN;
-                        return !isNaN(valSelected) && !isNaN(valCorrect) && valSelected === valCorrect;
-                      })()
-                    ) : session.answers[selectedQuestion.id] === actualCorrectOption) ? (
+                    ) : evaluateQuestionAnswer(
+                        currentFullQ?.type ?? selectedQuestion.type,
+                        session.answers[selectedQuestion.id],
+                        actualCorrectOption,
+                        currentFullQ?.answerText ?? selectedQuestion.correctAnswerText
+                      ).isCorrect ? (
                       <div className="flex flex-col items-center justify-center bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-lg text-emerald-700 dark:text-emerald-400 shadow-sm">
                         <span className="font-bold text-xs uppercase tracking-wide">Correct</span>
                         <span className="font-bold text-[10px] text-emerald-600 dark:text-emerald-400">+4 Marks</span>

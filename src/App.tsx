@@ -471,13 +471,24 @@ export default function App() {
       // Parse attempt state directly from report payload
       const parsedAnswers = report.answer_sheet || {};
 
-      // Convert string indices like "0" back to integers for Single Choice
+      // Convert string indices like "0" back to integers, or parse JSON array strings
       Object.keys(parsedAnswers).forEach(key => {
         const val = parsedAnswers[key];
         const dummyQ = dummyQuestions.find(q => q.id.toString() === key);
-        if (dummyQ && dummyQ.type !== 'numerical') {
-          if (typeof val === 'string' && !isNaN(parseInt(val))) {
-            parsedAnswers[key] = parseInt(val);
+        if (typeof val === 'string') {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) {
+              parsedAnswers[key] = parsed;
+              return;
+            }
+          } catch {
+            // not a json string
+          }
+          if (dummyQ && dummyQ.type !== 'numerical') {
+            if (/^-?\d+$/.test(val.trim())) {
+              parsedAnswers[key] = parseInt(val.trim(), 10);
+            }
           }
         }
       });

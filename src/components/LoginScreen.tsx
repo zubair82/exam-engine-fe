@@ -17,8 +17,17 @@ export default function LoginScreen() {
 
   // Save referral codes if passed directly on /login
   if (refCode) {
+    const existingRef = localStorage.getItem('referral_code');
+    if (existingRef && existingRef !== refCode) {
+      localStorage.removeItem('referral_teacher');
+      sessionStorage.removeItem('referral_teacher');
+    }
     localStorage.setItem('referral_code', refCode);
     sessionStorage.setItem('referral_code', refCode);
+    if (!teacherParam) {
+      localStorage.removeItem('referral_teacher');
+      sessionStorage.removeItem('referral_teacher');
+    }
   }
   if (teacherParam) {
     localStorage.setItem('referral_teacher', teacherParam);

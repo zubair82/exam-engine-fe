@@ -3,8 +3,10 @@ import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-do
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import ExamSimulaLogo from './Logo';
+import PromoBanner from './PromoBanner';
+import DefaultBanner from './DefaultBanner';
 import { getExamMetadata } from '../data/examMetadata';
-import { ExamTypeConfig } from '../types';
+import { ExamTypeConfig, TutorData } from '../types';
 import { fetchExamTypes, matchesExamCategory, normalizeExamCategory, DEFAULT_EXAM_TYPES } from '../services/examTypesService';
 import { useRazorpayCheckout } from '../hooks/useRazorpayCheckout';
 import { extractExamDurationSeconds, formatDurationFriendly } from '../utils/durationUtils';
@@ -29,6 +31,7 @@ export interface ExamItem {
   paper_type?: string;
   display_name?: string;
   bio?: string;
+  banner_url?: string;
   teacher_id?: string;
   teacher_slug?: string;
   referral_code?: string;
@@ -141,7 +144,8 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const hasReferral = Boolean(teacherSlug || refCode);
 
   // Resolved teacher details from referral code
-  const [referredTeacher, setReferredTeacher] = useState<{ teacher_id: string; display_name: string } | null>(null);
+  const [referredTeacher, setReferredTeacher] = useState<{ teacher_id: string; display_name: string; banner_url?: string } | null>(null);
+  const [viewOverride, setViewOverride] = useState<'teacher' | 'all' | null>(null);
 
   const { buyPaper, isCheckingOut, activePaperId } = useRazorpayCheckout({
     onSuccess: (_, paperId) => {
@@ -150,9 +154,24 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   });
 
   useEffect(() => {
+    if (urlRef || urlTeacher) {
+      setViewOverride('teacher');
+    }
+  }, [urlRef, urlTeacher]);
+
+  useEffect(() => {
     if (urlRef) {
+      const existingRef = localStorage.getItem('referral_code');
+      if (existingRef && existingRef !== urlRef) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
       localStorage.setItem('referral_code', urlRef);
       sessionStorage.setItem('referral_code', urlRef);
+      if (!urlTeacher) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
     }
     if (urlTeacher) {
       localStorage.setItem('referral_teacher', urlTeacher);
@@ -165,45 +184,60 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
     fetch(`${import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080'}/api/v1/teacher/referral/${refCode}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data && data.teacher_id) {
-          setReferredTeacher({
-            teacher_id: data.teacher_id,
-            display_name: data.display_name || ''
-          });
+        if (data) {
+          const resolvedId = String(data.teacher_id || data.teacherId || data.id || data.user_id || '').trim();
+          const resolvedName = String(data.display_name || data.displayName || data.name || '').trim();
+          const resolvedBanner = String(data.banner_url || data.bannerUrl || '').trim();
+          if (resolvedId || resolvedName) {
+            setReferredTeacher({
+              teacher_id: resolvedId,
+              display_name: resolvedName,
+              banner_url: resolvedBanner
+            });
+            if (resolvedName) {
+              const cleanSlug = resolvedName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+              localStorage.setItem('referral_teacher', cleanSlug);
+              sessionStorage.setItem('referral_teacher', cleanSlug);
+            }
+          }
         }
       })
       .catch(err => console.error("Failed to resolve teacher by referral code:", err));
   }, [refCode]);
 
   // Active view:
+  // - If viewOverride is explicitly set via user toggle, honor it.
   // - If 'view' param is explicitly 'all', show 'all'.
   // - If 'view' param is explicitly 'teacher', show 'teacher'.
-  // - If no view param in URL:
-  //     * If URL explicitly has referral params (?ref= or ?teacher=), default to 'teacher'
-  //     * Otherwise (e.g. clean /question-papers), default to 'all' so all marketplace papers show!
+  // - If URL has referral params (?ref= or ?teacher=), default to 'teacher'.
+  // - If URL does not have referral params (e.g. redirected to /question-papers on Explore All), show 'all'.
   const activeView: 'teacher' | 'all' = useMemo(() => {
     if (!hasReferral) return 'all';
+    if (viewOverride) return viewOverride;
     if (viewParam === 'all') return 'all';
     if (viewParam === 'teacher') return 'teacher';
     if (urlRef || urlTeacher) return 'teacher';
     return 'all';
-  }, [hasReferral, viewParam, urlRef, urlTeacher]);
+  }, [hasReferral, viewOverride, viewParam, urlRef, urlTeacher]);
 
   const handleToggleView = (newView: 'teacher' | 'all') => {
+    setViewOverride(newView);
     if (newView === 'all') {
-      navigate('/question-papers', { replace: true });
+      // Clear referral query parameters and redirect cleanly to all marketplace exam papers
+      navigate(location.pathname, { replace: true });
     } else {
       const targetRef = urlRef || storedRef;
-      const targetTeacher = urlTeacher || storedTeacher;
+      const targetTeacher = urlTeacher || (referredTeacher?.display_name ? referredTeacher.display_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : storedTeacher);
       const nextParams = new URLSearchParams();
       if (targetRef) nextParams.set('ref', targetRef);
       if (targetTeacher) nextParams.set('teacher', targetTeacher);
-      navigate(`/question-papers${nextParams.toString() ? `?${nextParams.toString()}` : ''}`, { replace: true });
+      navigate(`${location.pathname}?${nextParams.toString()}`, { replace: true });
     }
     setCurrentPage(1);
     setStatusFilter('All Tests');
     setSearchQuery('');
     setSelectedSubjects([]);
+    setSelectedTutor(null);
   };
 
   const [examTypes, setExamTypes] = useState<ExamTypeConfig[]>(DEFAULT_EXAM_TYPES);
@@ -216,6 +250,27 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+
+  // Selected tutor filter (can be set via query param ?tutor= or by clicking tutor filter)
+  const tutorParam = searchParams.get('tutor');
+  const [selectedTutor, setSelectedTutor] = useState<string | null>(tutorParam || null);
+
+  useEffect(() => {
+    const param = searchParams.get('tutor');
+    setSelectedTutor(param || null);
+  }, [searchParams]);
+
+  const handleSelectTutor = (tutorId: string | null) => {
+    setSelectedTutor(tutorId);
+    setCurrentPage(1);
+    const nextParams = new URLSearchParams(searchParams);
+    if (tutorId) {
+      nextParams.set('tutor', tutorId);
+    } else {
+      nextParams.delete('tutor');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -287,6 +342,49 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
           ).toString().trim();
 
           const paperIdNum = Number(e.paper_id ?? e.id ?? e.paperId) || 0;
+          const bannerUrl = (
+            e.banner_url ||
+            e.bannerUrl ||
+            metadataObj.banner_url ||
+            metadataObj.bannerUrl ||
+            ''
+          ).toString().trim();
+
+          const rawTeacherId = (
+            e.teacher_id ||
+            e.teacherId ||
+            e.creator_id ||
+            e.creatorId ||
+            e.user_id ||
+            e.userId ||
+            e.author_id ||
+            e.authorId ||
+            metadataObj.teacher_id ||
+            metadataObj.teacherId ||
+            metadataObj.creator_id ||
+            metadataObj.creatorId ||
+            metadataObj.user_id ||
+            metadataObj.userId ||
+            metadataObj.author_id ||
+            metadataObj.authorId ||
+            ''
+          ).toString().trim();
+
+          const rawTeacherSlug = (
+            e.teacher_slug ||
+            e.teacherSlug ||
+            metadataObj.teacher_slug ||
+            metadataObj.teacherSlug ||
+            ''
+          ).toString().trim();
+
+          const rawReferralCode = (
+            e.referral_code ||
+            e.referralCode ||
+            metadataObj.referral_code ||
+            metadataObj.referralCode ||
+            ''
+          ).toString().trim();
 
           return {
             id: String(paperIdNum),
@@ -303,7 +401,10 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
             paper_type: paperType,
             display_name: displayName,
             bio: e.bio || '',
-            teacher_id: e.teacher_id || '',
+            banner_url: bannerUrl,
+            teacher_id: rawTeacherId,
+            teacher_slug: rawTeacherSlug,
+            referral_code: rawReferralCode,
             price_paise: pricePaise,
             is_free: isFree,
             is_purchased: isPurchased
@@ -387,23 +488,59 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const isExamByReferredTeacher = (exam: ExamItem): boolean => {
     if (!hasReferral) return true;
 
-    // 1. Compare exam_paper's teacher_id with the teacher_id resolved from the referral code
-    if (referredTeacher?.teacher_id && exam.teacher_id) {
-      const cleanPaperTeacherId = String(exam.teacher_id).replace(/-/g, '').toLowerCase().trim();
+    // 1. If we have the referred teacher's teacher_id resolved from the referral code
+    if (referredTeacher?.teacher_id) {
       const cleanReferredId = String(referredTeacher.teacher_id).replace(/-/g, '').toLowerCase().trim();
-      if (cleanPaperTeacherId === cleanReferredId) return true;
+
+      // If the paper has a teacher_id, this is the definitive authority
+      if (exam.teacher_id) {
+        const cleanPaperTeacherId = String(exam.teacher_id).replace(/-/g, '').toLowerCase().trim();
+        return cleanPaperTeacherId === cleanReferredId;
+      }
+
+      // If the paper does NOT have a teacher_id, check referral_code
+      if (refCode && exam.referral_code) {
+        return exam.referral_code.trim().toLowerCase() === refCode.trim().toLowerCase();
+      }
+
+      // If the paper does NOT have a teacher_id, match display_name if both exist
+      if (referredTeacher.display_name && exam.display_name) {
+        return exam.display_name.trim().toLowerCase() === referredTeacher.display_name.trim().toLowerCase();
+      }
+
+      return false;
     }
 
-    // 2. Compare resolved teacher display_name with exam display_name
-    if (referredTeacher?.display_name && exam.display_name) {
-      if (exam.display_name.trim().toLowerCase() === referredTeacher.display_name.trim().toLowerCase()) return true;
+    // 2. If we have a referral code but teacher_id resolution hasn't finished or returned an empty ID
+    if (refCode) {
+      if (exam.referral_code && exam.referral_code.trim().toLowerCase() === refCode.trim().toLowerCase()) {
+        return true;
+      }
+      if (referredTeacher?.display_name && exam.display_name) {
+        return exam.display_name.trim().toLowerCase() === referredTeacher.display_name.trim().toLowerCase();
+      }
+      if (urlTeacher) {
+        const cleanSlug = urlTeacher.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (exam.teacher_slug && exam.teacher_slug.trim().toLowerCase() === cleanSlug) return true;
+        if (exam.display_name) {
+          const slugFromName = exam.display_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          if (slugFromName === cleanSlug) return true;
+        }
+      }
+      return false;
     }
 
-    // 3. Compare teacher slug against exam display_name
-    if (teacherSlug && exam.display_name) {
-      const slugFromName = exam.display_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    // 3. Fallback to teacherSlug if only teacher slug is present
+    if (teacherSlug) {
       const cleanSlug = teacherSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      if (slugFromName === cleanSlug) return true;
+      if (exam.teacher_slug && exam.teacher_slug.trim().toLowerCase() === cleanSlug) {
+        return true;
+      }
+      if (exam.display_name) {
+        const slugFromName = exam.display_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (slugFromName === cleanSlug) return true;
+      }
+      return false;
     }
 
     return false;
@@ -412,7 +549,107 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   // Count of teacher-specific exams in the current category
   const teacherExamsCount = useMemo(() => {
     return exams.filter(e => isExamByReferredTeacher(e) && matchesExamCategory(e, activeCategory, examTypes)).length;
-  }, [exams, activeCategory, examTypes, referredTeacher, hasReferral, teacherSlug]);
+  }, [exams, activeCategory, examTypes, referredTeacher, hasReferral, teacherSlug, refCode]);
+
+  // Dynamically extract unique tutors from loaded exams - NO hardcoded tutors
+  const availableTutors = useMemo<TutorData[]>(() => {
+    const tutorMap = new Map<string, TutorData>();
+
+    exams.forEach(exam => {
+      const displayName = (exam.display_name || '').trim();
+      const rawId = exam.teacher_id || exam.teacher_slug || (displayName ? displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+      if (!displayName && !rawId) return;
+
+      const id = rawId || displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (!tutorMap.has(id)) {
+        tutorMap.set(id, {
+          id,
+          name: displayName || 'Educator',
+          tagline: exam.bio || `Educator on ExamSimula`,
+          banner_url: exam.banner_url || '',
+          avatar_url: ''
+        });
+      } else {
+        const existing = tutorMap.get(id)!;
+        if (!existing.banner_url && exam.banner_url) {
+          existing.banner_url = exam.banner_url;
+        }
+        if (!existing.name && displayName) {
+          existing.name = displayName;
+        }
+      }
+    });
+
+    if (referredTeacher?.display_name) {
+      const rawId = referredTeacher.teacher_id || referredTeacher.display_name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (!tutorMap.has(rawId)) {
+        tutorMap.set(rawId, {
+          id: rawId,
+          name: referredTeacher.display_name,
+          tagline: `Educator on ExamSimula`,
+          banner_url: referredTeacher.banner_url || '',
+          avatar_url: ''
+        });
+      }
+    }
+
+    return Array.from(tutorMap.values());
+  }, [exams, referredTeacher]);
+
+  // Check if an exam belongs to a specific tutor
+  const isExamByTutor = (exam: ExamItem, tutorId: string): boolean => {
+    if (!tutorId) return true;
+    const cleanTutorId = tutorId.toLowerCase().trim();
+
+    if (exam.teacher_id) {
+      const cleanExamTeacherId = String(exam.teacher_id).replace(/-/g, '').toLowerCase().trim();
+      if (cleanExamTeacherId === cleanTutorId.replace(/-/g, '') || String(exam.teacher_id).toLowerCase().trim() === cleanTutorId) {
+        return true;
+      }
+    }
+    if (exam.teacher_slug && exam.teacher_slug.toLowerCase().trim() === cleanTutorId) {
+      return true;
+    }
+    if (exam.display_name) {
+      const slugFromName = exam.display_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (slugFromName === cleanTutorId || exam.display_name.trim().toLowerCase() === cleanTutorId) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Active tutor for dynamic banner display:
+  // Condition 1: All Marketplace selected / ExamSimula -> returns null, which triggers <DefaultBanner />
+  // Condition 2: Specific tutor selected via filter OR active referral session -> returns tutor info, which triggers <PromoBanner />
+  const activeTutor = useMemo<{ name: string; banner_url?: string } | null>(() => {
+    const apiBase = import.meta.env.VITE_EXAM_API_URL || 'http://localhost:8080';
+
+    if (selectedTutor) {
+      const found = availableTutors.find(t => t.id === selectedTutor);
+      const tutorExam = exams.find(e => isExamByTutor(e, selectedTutor) && e.teacher_id);
+      const tutorId = tutorExam?.teacher_id || found?.id || selectedTutor;
+      const bannerUrl = found?.banner_url || (tutorId ? `${apiBase}/api/v1/exam/banner/${tutorId}` : undefined);
+      return {
+        name: found?.name || 'Educator',
+        banner_url: bannerUrl
+      };
+    }
+
+    if (hasReferral && activeView === 'teacher') {
+      const teacherId = referredTeacher?.teacher_id || exams.find(e => isExamByReferredTeacher(e) && e.teacher_id)?.teacher_id;
+      const examWithBanner = exams.find(e => isExamByReferredTeacher(e) && Boolean(e.banner_url));
+      const apiBannerUrl = teacherId ? `${apiBase}/api/v1/exam/banner/${teacherId}` : undefined;
+      const bannerUrl = referredTeacher?.banner_url || examWithBanner?.banner_url || apiBannerUrl;
+
+      return {
+        name: formattedTeacherName,
+        banner_url: bannerUrl
+      };
+    }
+
+    return null;
+  }, [selectedTutor, availableTutors, hasReferral, activeView, referredTeacher, formattedTeacherName, exams]);
 
   // Auto-switch to category and tab containing exams if currently empty
   useEffect(() => {
@@ -469,7 +706,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   useEffect(() => {
     setCurrentPage(1);
     setSelectedSubjects([]);
-  }, [activeCategory, searchQuery, statusFilter, activeTab, activeView]);
+  }, [activeCategory, searchQuery, statusFilter, activeTab, activeView, selectedTutor]);
 
   // Filtered exams
   const filteredExams = useMemo(() => {
@@ -479,6 +716,11 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
         if (!isExamByReferredTeacher(exam)) {
           return false;
         }
+      }
+
+      // 0.1 Tutor filter (from sidebar selection)
+      if (selectedTutor && !isExamByTutor(exam, selectedTutor)) {
+        return false;
       }
 
       // 1. Server-driven Category match (case-insensitive)
@@ -541,7 +783,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
       }
       return b.paper_id - a.paper_id;
     });
-  }, [exams, activeCategory, examTypes, statusFilter, activeTab, selectedSubjects, searchQuery, sortBy, hasReferral, activeView, teacherSlug, refCode]);
+  }, [exams, activeCategory, examTypes, statusFilter, activeTab, selectedSubjects, searchQuery, sortBy, hasReferral, activeView, teacherSlug, refCode, referredTeacher, selectedTutor]);
 
   const totalPages = Math.ceil(filteredExams.length / itemsPerPage) || 1;
   const paginatedExams = filteredExams.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -549,6 +791,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
   const getCategoryCount = (categoryCode: string) => {
     return exams.filter(e => {
       if (hasReferral && activeView === 'teacher' && !isExamByReferredTeacher(e)) return false;
+      if (selectedTutor && !isExamByTutor(e, selectedTutor)) return false;
       return matchesExamCategory(e, categoryCode, examTypes);
     }).length;
   };
@@ -672,37 +915,76 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
       </div>
 
       <main className="pt-8 md:pt-24 pb-20 px-4 md:px-8 max-w-[1440px] mx-auto min-h-screen">
-        {/* Tab Navigation (Full Mocks / Subject Tests / PYQs) */}
+        {/* Tab Navigation (Full Mocks / Subject Tests / PYQs) & Referral Toggle */}
         <div className="mb-8 border-b border-slate-200 dark:border-slate-700/60">
-          <div className="flex gap-8 overflow-x-auto pb-px hide-scrollbar">
-            {(['Full Mocks', 'Subject Tests', 'Previous Year Papers'] as const).map((tab) => {
-              const count = exams.filter(e => {
-                if (hasReferral && activeView === 'teacher' && !isExamByReferredTeacher(e)) return false;
-                if (!matchesExamCategory(e, activeCategory, examTypes)) return false;
-                return getExamPaperType(e) === tab;
-              }).length;
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-px">
+            {/* Left: Tab options */}
+            <div className="flex gap-6 sm:gap-8 overflow-x-auto hide-scrollbar -mb-px">
+              {(['Full Mocks', 'Subject Tests', 'Previous Year Papers'] as const).map((tab) => {
+                const count = exams.filter(e => {
+                  if (hasReferral && activeView === 'teacher' && !isExamByReferredTeacher(e)) return false;
+                  if (selectedTutor && !isExamByTutor(e, selectedTutor)) return false;
+                  if (!matchesExamCategory(e, activeCategory, examTypes)) return false;
+                  return getExamPaperType(e) === tab;
+                }).length;
 
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-4 border-b-2 text-base md:text-lg flex items-center gap-2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${activeTab === tab
-                    ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
-                    }`}
-                >
-                  <span>{tab}</span>
-                  {count > 0 && (
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${activeTab === tab
-                      ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300'
-                      : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`pb-4 border-b-2 text-base md:text-lg flex items-center gap-2 font-semibold whitespace-nowrap cursor-pointer transition-colors ${activeTab === tab
+                      ? 'border-blue-900 dark:border-blue-500 text-blue-900 dark:text-blue-400 font-bold'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-blue-900 dark:hover:text-blue-300'
+                      }`}
+                  >
+                    <span>{tab}</span>
+                    {count > 0 && (
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${activeTab === tab
+                        ? 'bg-blue-100 dark:bg-blue-950/70 text-blue-800 dark:text-blue-300'
+                        : 'bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400'
+                        }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Referral Toggle Button (as in design image) */}
+            {hasReferral && (
+              <div className="pb-3 sm:pb-3 shrink-0 self-start sm:self-auto overflow-x-auto max-w-full hide-scrollbar">
+                <div className="inline-flex items-center bg-slate-200/70 dark:bg-[#161a24] p-1 rounded-full border border-slate-300/70 dark:border-slate-700/60 shadow-xs">
+                  <button
+                    onClick={() => handleToggleView('teacher')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeView === 'teacher'
+                        ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                  >
+                    <span className="material-symbols-outlined text-[17px]">person</span>
+                    <span>{formattedTeacherName}'s Tests</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${activeView === 'teacher'
+                        ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300'
+                        : 'bg-slate-300/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                       }`}>
-                      {count}
+                      {teacherExamsCount}
                     </span>
-                  )}
-                </button>
-              );
-            })}
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleView('all')}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${activeView === 'all'
+                        ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                  >
+                    <span className="material-symbols-outlined text-[17px]">grid_view</span>
+                    <span>Explore All</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -726,6 +1008,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                     setStatusFilter('All Tests');
                     setSearchQuery('');
                     setSelectedSubjects([]);
+                    handleSelectTutor(null);
                   }}
                   className="text-xs text-blue-700 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
                 >
@@ -781,99 +1064,79 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                     ))}
                   </div>
                 </div>
+
+                {/* Dynamically Extracted Educators / Tutors - zero hardcoded entries */}
+                {availableTutors.length > 0 && (
+                  <div>
+                    <hr className="border-slate-200 dark:border-slate-700/60 hidden lg:block" />
+                    <div className="flex items-center justify-between mb-3 mt-4">
+                      <label className="block text-sm font-semibold text-slate-900 dark:text-slate-200">
+                        Educators / Tutors
+                      </label>
+                      {selectedTutor && (
+                        <button
+                          onClick={() => handleSelectTutor(null)}
+                          className="text-xs text-blue-700 dark:text-blue-400 font-semibold hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-row lg:flex-col gap-4 lg:gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 hide-scrollbar">
+                      {availableTutors.map((tutor) => {
+                        const isSelected = selectedTutor === tutor.id;
+                        const tutorExamsCount = exams.filter(e => isExamByTutor(e, tutor.id) && matchesExamCategory(e, activeCategory, examTypes)).length;
+                        return (
+                          <label key={tutor.id} className="flex items-center justify-between gap-2 cursor-pointer group whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="tutor_filter"
+                                checked={isSelected}
+                                onChange={() => handleSelectTutor(isSelected ? null : tutor.id)}
+                                onClick={() => {
+                                  if (isSelected) handleSelectTutor(null);
+                                }}
+                                className="w-4 h-4 border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 accent-blue-600 dark:accent-blue-500 dark:bg-[#1a1e29]"
+                              />
+                              <span className={`text-sm group-hover:text-slate-900 dark:group-hover:text-slate-100 ${
+                                isSelected ? 'font-bold text-blue-900 dark:text-blue-400' : 'text-slate-600 dark:text-slate-300'
+                              }`}>
+                                {tutor.name}
+                              </span>
+                            </div>
+                            {tutorExamsCount > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-[#1e2330] text-slate-500 dark:text-slate-400 font-semibold">
+                                {tutorExamsCount}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </aside>
 
           {/* Test Grid Section */}
           <div className="flex-1 min-w-0">
-            {/* Referred Teacher Segmented Toggle Banner */}
-            {hasReferral && (
-              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50/60 dark:from-[#202637] dark:via-[#1e2433] dark:to-[#1a1e29] border border-blue-200/70 dark:border-blue-500/20 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold shadow-md shrink-0 transition-colors ${
-                    activeView === 'teacher'
-                      ? 'bg-blue-600 shadow-blue-500/20'
-                      : 'bg-indigo-600 shadow-indigo-500/20'
-                  }`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
-                      {activeView === 'teacher' ? 'school' : 'public'}
-                    </span>
-                  </div>
-                  <div>
-                    {activeView === 'teacher' ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-950/80 px-2 py-0.5 rounded-md">
-                            Teacher Referral
-                          </span>
-                          {refCode && (
-                            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                              {refCode}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                          Recommended by <span className="font-bold text-blue-900 dark:text-blue-300">{formattedTeacherName}</span>
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-950/80 px-2 py-0.5 rounded-md">
-                            Marketplace Tests
-                          </span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            All Educators
-                          </span>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                          Explore mock tests uploaded across ExamSimula
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Segmented Control */}
-                <div className="flex items-center bg-slate-200/80 dark:bg-[#161a24] p-1 rounded-xl border border-slate-300/70 dark:border-slate-700/60 self-stretch sm:self-auto shrink-0">
-                  <button
-                    onClick={() => handleToggleView('teacher')}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeView === 'teacher'
-                        ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person</span>
-                    <span>{formattedTeacherName}'s Tests</span>
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeView === 'teacher'
-                        ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300'
-                        : 'bg-slate-300/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}>
-                      {teacherExamsCount}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => handleToggleView('all')}
-                    className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeView === 'all'
-                        ? 'bg-white dark:bg-[#252b3b] text-blue-900 dark:text-blue-300 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>grid_view</span>
-                    <span>Explore All</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Dynamic Promotional Banner: Switches between PromoBanner (Tutor) and DefaultBanner (ExamSimula) */}
+            <div className="mb-6">
+              {activeTutor ? (
+                <PromoBanner bannerUrl={activeTutor.banner_url} tutorName={activeTutor.name} />
+              ) : (
+                <DefaultBanner activeCategory={activeCategory} categoryName={currentExamType.name} />
+              )}
+            </div>
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Showing <span className="font-bold text-slate-900 dark:text-slate-100">{filteredExams.length}</span> mock tests for <span className="font-bold text-blue-900 dark:text-blue-400">{currentExamType.name || activeCategory}</span>
-                {hasReferral && activeView === 'teacher' && (
+                {activeTutor && (
                   <span className="text-blue-700 dark:text-blue-400 font-semibold ml-1">
-                    by {formattedTeacherName}
+                    by {activeTutor.name}
                   </span>
                 )}
               </p>
@@ -1035,6 +1298,7 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
                       setStatusFilter('All Tests');
                       setSearchQuery('');
                       setSelectedSubjects([]);
+                      handleSelectTutor(null);
                     }}
                     className="bg-slate-100 hover:bg-slate-200 dark:bg-[#1e2330] dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold py-2.5 px-6 rounded-xl transition-all cursor-pointer"
                   >
@@ -1160,3 +1424,5 @@ export default function ExamsListScreen({ onStartExam, onViewReport }: ExamsList
     </div>
   );
 }
+
+export const PapersPage = ExamsListScreen;

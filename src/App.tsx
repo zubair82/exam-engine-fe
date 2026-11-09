@@ -44,7 +44,8 @@ const AcademyRoute = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const rawRef = searchParams.get('ref') || localStorage.getItem('referral_code') || sessionStorage.getItem('referral_code') || '';
-  const slug = params.slug || searchParams.get('teacher') || localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || '';
+  const explicitTeacher = params.slug || searchParams.get('teacher') || '';
+  const slug = explicitTeacher || (searchParams.get('ref') ? '' : (localStorage.getItem('referral_teacher') || sessionStorage.getItem('referral_teacher') || ''));
 
   const forwardParams = new URLSearchParams();
   if (rawRef) forwardParams.set('ref', rawRef);
@@ -55,8 +56,17 @@ const AcademyRoute = () => {
 
   useEffect(() => {
     if (rawRef) {
+      const existingRef = localStorage.getItem('referral_code');
+      if (existingRef && existingRef !== rawRef) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
       localStorage.setItem('referral_code', rawRef);
       sessionStorage.setItem('referral_code', rawRef);
+      if (!explicitTeacher) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
     }
     if (slug) {
       localStorage.setItem('referral_teacher', slug);
@@ -64,7 +74,7 @@ const AcademyRoute = () => {
     }
     sessionStorage.setItem('referral_post_login', targetUrl);
     localStorage.setItem('referral_post_login', targetUrl);
-  }, [rawRef, slug, targetUrl]);
+  }, [rawRef, slug, explicitTeacher, targetUrl]);
 
   if (isLoading) {
     return (
@@ -867,8 +877,17 @@ export default function App() {
     const teacherParam = params.get('teacher');
 
     if (refCode) {
+      const existingRef = localStorage.getItem('referral_code');
+      if (existingRef && existingRef !== refCode) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
       localStorage.setItem('referral_code', refCode);
       sessionStorage.setItem('referral_code', refCode);
+      if (!teacherParam) {
+        localStorage.removeItem('referral_teacher');
+        sessionStorage.removeItem('referral_teacher');
+      }
     }
     if (teacherParam) {
       localStorage.setItem('referral_teacher', teacherParam);
@@ -1036,6 +1055,23 @@ export default function App() {
           } />
 
           <Route path="/question-papers" element={
+            <ProtectedRoute allowedRoles={['student', 'teacher']}>
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full"
+              >
+                <ExamsListScreen
+                  onStartExam={(paperId) => navigate(`/instructions/${paperId}`)}
+                  onViewReport={handleViewReport}
+                />
+              </motion.div>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/papers" element={
             <ProtectedRoute allowedRoles={['student', 'teacher']}>
               <motion.div
                 initial={{ opacity: 0, y: 15 }}

@@ -84,3 +84,21 @@ export interface ExamTypeConfig {
   is_active?: boolean;
 }
 
+export interface TutorData {
+  id: string;
+  name: string;
+  slug?: string;
+  tagline?: string;
+  avatar_url?: string;
+  banner_url?: string;
+  display_name?: string;
+  bio?: string;
+  subject?: string;
+  badge?: string;
+  rating?: number;
+  studentsCount?: string;
+  papersCount?: number;
+  referral_code?: string;
+}
+
+
